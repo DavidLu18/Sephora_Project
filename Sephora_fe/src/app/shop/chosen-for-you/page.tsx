@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import ProductCard from "@/components/ProductCard"
 import { Product } from "@/types/product"
 import { Category } from "@/types/category"
-import { getAllProducts, getCategories } from "@/api"
+import { getChosenForYou, getCategories } from "@/api"
 import {
   ChevronsLeft,
   ChevronLeft,
@@ -16,7 +16,7 @@ import Link from "next/link"
 
 const PAGE_SIZE = 12
 
-export default function ProductsPage() {
+export default function ChosenForYouPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,7 +31,7 @@ export default function ProductsPage() {
     const fetchData = async () => {
       try {
         const [productData, categoryData] = await Promise.all([
-          getAllProducts(),
+          getChosenForYou(200),
           getCategories(),
         ])
         setProducts(productData)
@@ -62,14 +62,14 @@ export default function ProductsPage() {
 
   // 🔹 Lọc sản phẩm theo danh mục (nếu có)
   const filteredProducts = selectedCategory
-    ? products.filter(
-        (p) =>
-          p.category &&
-          Number(p.category.category_id) === Number(selectedCategory)
-      )
-    : products
+  ? products.filter(
+      (p) =>
+        p.category &&
+        String(p.category.category_id) === selectedCategory
+    )
+  : products
 
-  // Pagination logic
+  // Pagination
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
   const start = (currentPage - 1) * PAGE_SIZE
   const end = start + PAGE_SIZE
@@ -77,13 +77,13 @@ export default function ProductsPage() {
 
   return (
     <main className="px-24 py-8 flex gap-8">
-      {/* 🔹 Sidebar danh mục */}
+      {/* 🔹 Sidebar danh mục bên trái */}
       <aside className="w-48">
         <Link
-          href="/shop"
+          href="/shop/chosen-for-you"
           className="font-bold mb-3 block hover:underline"
         >
-          Danh mục sản phẩm
+          Chosen For You
         </Link>
 
         {categories.length > 0 ? (
@@ -92,10 +92,10 @@ export default function ProductsPage() {
               <li key={cat.category_id}>
                 <button
                   onClick={() =>
-                    router.push(`/shop/?category=${cat.category_id}`)
+                    router.push(`/shop/chosen-for-you?category=${cat.category_id}`)
                   }
                   className={`text-left w-full hover:underline ${
-                    Number(selectedCategory) === cat.category_id
+                    String(cat.category_id) === selectedCategory
                       ? "font-semibold text-black"
                       : "text-gray-700"
                   }`}
@@ -112,7 +112,7 @@ export default function ProductsPage() {
 
       {/* 🔹 Danh sách sản phẩm */}
       <section className="flex-1">
-        <h1 className="text-2xl font-bold mb-6">Tất cả sản phẩm</h1>
+        <h1 className="text-2xl font-bold mb-6">Dành riêng cho bạn</h1>
 
         {currentProducts.length > 0 ? (
           <>
@@ -122,9 +122,10 @@ export default function ProductsPage() {
               ))}
             </div>
 
-            {/* Phân trang rút gọn */}
+            {/* 🔹 Phân trang (rút gọn) */}
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-2 mt-10 text-sm">
+                {/* Trang đầu & trước */}
                 {currentPage > 1 && (
                   <>
                     <button
@@ -144,17 +145,20 @@ export default function ProductsPage() {
                   </>
                 )}
 
+                {/* Các số trang (rút gọn) */}
                 {Array.from({ length: totalPages })
                   .map((_, i) => i + 1)
-                  .filter(
-                    (page) =>
+                  .filter((page) => {
+                    return (
                       page === 1 ||
                       page === totalPages ||
                       (page >= currentPage - 1 && page <= currentPage + 1)
-                  )
+                    )
+                  })
                   .map((page, idx, visiblePages) => {
                     const prevPage = visiblePages[idx - 1]
                     const needEllipsis = prevPage && page - prevPage > 1
+
                     return (
                       <span key={page} className="flex items-center">
                         {needEllipsis && <span className="px-2">...</span>}
@@ -172,6 +176,7 @@ export default function ProductsPage() {
                     )
                   })}
 
+                {/* Trang sau & cuối */}
                 {currentPage < totalPages && (
                   <>
                     <button
