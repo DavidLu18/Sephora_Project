@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import ProductCard from "@/components/ProductCard"
 import { Product } from "@/types/product"
 import { Category } from "@/types/category"
+
 import { getAllProducts, getCategories } from "@/api"
 import {
   ChevronsLeft,
@@ -12,21 +13,28 @@ import {
   ChevronRight,
   ChevronsRight,
 } from "lucide-react"
-import Link from "next/link"
 
 const PAGE_SIZE = 12
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [filters, setFilters] = useState({
+    categoryId: null as number | null,
+    minPrice: null as number | null,
+    maxPrice: null as number | null,
+    sortBy: "",
+  })
 
   const searchParams = useSearchParams()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter()
   const selectedCategory = searchParams.get("category")
 
+  // 🔹 Lấy dữ liệu sản phẩm & danh mục
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -46,6 +54,19 @@ export default function ProductsPage() {
     fetchData()
   }, [])
 
+  // 🔹 Khi thay đổi danh mục trên URL → cập nhật filter.categoryId
+  useEffect(() => {
+    if (selectedCategory) {
+      setFilters((prev) => ({
+        ...prev,
+        categoryId: Number(selectedCategory),
+      }))
+    } else {
+      setFilters((prev) => ({ ...prev, categoryId: null }))
+    }
+  }, [selectedCategory])
+
+
   if (loading)
     return (
       <main className="px-6 py-6 flex justify-center">
@@ -60,16 +81,41 @@ export default function ProductsPage() {
       </main>
     )
 
-  // 🔹 Lọc sản phẩm theo danh mục (nếu có)
-  const filteredProducts = selectedCategory
-    ? products.filter(
-        (p) =>
-          p.category &&
-          Number(p.category.category_id) === Number(selectedCategory)
-      )
-    : products
+  // 🔹 Áp dụng bộ lọc
+  let filteredProducts = [...products]
 
-  // Pagination logic
+  if (filters.categoryId)
+    filteredProducts = filteredProducts.filter(
+      (p) =>
+        p.category &&
+        Number(p.category.category_id) === Number(filters.categoryId)
+    )
+
+  if (filters.minPrice !== null)
+  filteredProducts = filteredProducts.filter(
+    (p) => p.price && Number(p.price) >= filters.minPrice!
+  )
+
+  if (filters.maxPrice !== null)
+    filteredProducts = filteredProducts.filter(
+      (p) => p.price && Number(p.price) <= filters.maxPrice!
+    )
+
+  if (filters.sortBy === "price-asc")
+    filteredProducts.sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0))
+
+  if (filters.sortBy === "price-desc")
+    filteredProducts.sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0))
+  if (filters.sortBy === "name-asc")
+  filteredProducts.sort((a, b) =>
+    a.product_name.localeCompare(b.product_name)
+  )
+
+  if (filters.sortBy === "name-desc")
+    filteredProducts.sort((a, b) =>
+      b.product_name.localeCompare(a.product_name)
+  )
+  //  Phân trang
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
   const start = (currentPage - 1) * PAGE_SIZE
   const end = start + PAGE_SIZE
@@ -77,40 +123,24 @@ export default function ProductsPage() {
 
   return (
     <main className="px-24 py-8 flex gap-8">
-      {/* 🔹 Sidebar danh mục */}
-      <aside className="w-48">
-        <Link
-          href="/shop"
-          className="font-bold mb-3 block hover:underline"
-        >
-          Danh mục sản phẩm
-        </Link>
+      {/* Sidebar lọc sản phẩm (có cuộn riêng) */}
+      {/* <ProductSidebarFilter
+              categories={categories}
+              onFilterChange={handleFilterChange}
+              filters={filters} // ✅ truyền filters xuống sidebar
+              onClearFilters={() => {
+                setFilters({
+                  categoryId: null,
+                  minPrice: null,
+                  maxPrice: null,
+                  sortBy: "",
+                  // brands: [],
+                  rating: null,
+                })
+              }} // ✅ khi sid
+            /> */}
 
-        {categories.length > 0 ? (
-          <ul className="space-y-2 text-sm">
-            {categories.map((cat) => (
-              <li key={cat.category_id}>
-                <button
-                  onClick={() =>
-                    router.push(`/shop/?category=${cat.category_id}`)
-                  }
-                  className={`text-left w-full hover:underline ${
-                    Number(selectedCategory) === cat.category_id
-                      ? "font-semibold text-black"
-                      : "text-gray-700"
-                  }`}
-                >
-                  {cat.category_name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-500 text-sm">Không có danh mục</p>
-        )}
-      </aside>
-
-      {/* 🔹 Danh sách sản phẩm */}
+      {/* Danh sách sản phẩm */}
       <section className="flex-1">
         <h1 className="text-2xl font-bold mb-6">Tất cả sản phẩm</h1>
 
@@ -122,7 +152,7 @@ export default function ProductsPage() {
               ))}
             </div>
 
-            {/* Phân trang rút gọn */}
+            {/* Phân trang */}
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-2 mt-10 text-sm">
                 {currentPage > 1 && (

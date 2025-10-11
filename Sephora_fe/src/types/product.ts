@@ -4,8 +4,8 @@ export interface Product {
   productid: number
   sku?: string
   product_name: string
-  price?: string
-  sale_price?: string
+  price: number
+  sale_price?: number
   currency?: string
   size?: string
   description?: string
@@ -13,6 +13,7 @@ export interface Product {
   category_name?: string
   avg_rating?: number
   reviews_count?: number
+  highlight?: string[] 
   category?: Category
 }
 export interface ProductReview {
