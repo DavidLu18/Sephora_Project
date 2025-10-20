@@ -1,15 +1,22 @@
 import axios from "axios"
 import { Product } from "@/types/product"
+import { auth } from "@/lib/firebase"
 
 export const API_BASE_URL = "http://127.0.0.1:8000/api"
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
+  const currentUser = auth.currentUser
+  const token = currentUser ? await currentUser.getIdToken(true) : null
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   })
 
   if (!res.ok) {
@@ -19,10 +26,6 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   return res.json()
 }
 
-// --- API CALLS ---
-export async function getAllProducts(): Promise<Product[]> {
-  return fetchAPI("/products/")
-}
 
 export async function getChosenForYou(filters?: {
   brands?: number[]
@@ -87,5 +90,48 @@ export async function getBrands() {
 export async function getCategories() {
   return fetchAPI("/categories/");
 }
+
+
+// Lấy giỏ hàng của người dùng
+export async function getCart() {
+  
+  console.log("Current user:", auth.currentUser);
+  return fetchAPI("/cart/");
+}
+
+// Thêm sản phẩm vào giỏ hàng
+export async function addToCart(productId: number, quantity = 1) {
+  return fetchAPI("/cart/add/", {
+    method: "POST",
+    body: JSON.stringify({ product_id: productId, quantity }),
+  });
+}
+
+// Xóa sản phẩm khỏi giỏ hàng
+export async function removeFromCart(itemId: number) {
+  return fetchAPI("/cart/remove/", {
+    method: "POST",
+    body: JSON.stringify({ item_id: itemId }),
+  });
+}
+
+// Thanh toán (checkout)
+export async function checkoutCart(paymentMethod = "COD") {
+  return fetchAPI("/cart/checkout/", {
+    method: "POST",
+    body: JSON.stringify({ payment_method: paymentMethod }),
+  });
+}
+
+// Lấy danh sách đơn hàng của user
+export async function getOrders() {
+  return fetchAPI("/orders/");
+}
+
+// Lấy chi tiết 1 đơn hàng
+export async function getOrderDetail(orderId: number) {
+  return fetchAPI(`/orders/${orderId}/`);
+}
+
 
 export default fetchAPI

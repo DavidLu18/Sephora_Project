@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { Product } from "@/types/product";
-import { getProductById } from "@/api";
+import { getProductById,addToCart  } from "@/api";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -79,15 +79,24 @@ export default function ProductDetail() {
     setCurrentImage((prev) => (prev === 0 ? gallery.length - 1 : prev - 1));
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedSize && sizes.length > 0) {
       alert("Vui lòng chọn kích thước!");
       return;
     }
-    console.log(`Thêm vào giỏ hàng: ${product.product_name}, Size: ${selectedSize || "N/A"}, Quantity: ${quantity}`);
-    // Logic thêm vào giỏ hàng ở đây
+
+    if (!product) return;
+
+    try {
+      await addToCart(product.productid, quantity);
+      alert(" Đã thêm vào giỏ hàng!");
+    } catch (error) {
+      console.error("Lỗi khi thêm vào giỏ hàng:", error);
+      alert("Không thể thêm vào giỏ hàng. Vui lòng thử lại!");
+    }
   };
 
+  
   return (
     <main className="min-h-screen bg-white px-6 py-10 md:px-20">
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10">
