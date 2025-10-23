@@ -1,57 +1,98 @@
-import { getNewArrivals, getCategories } from "@/api"
-import ProductCard from "@/components/ProductCard"
-import Link from "next/link"
-import { Product } from "@/types/product"
-import { Category } from "@/types/category"
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react"
+import { getNewArrivals, getCategories } from "@/api";
+import ProductCard from "@/components/ProductCard";
+import { GetServerSidePropsContext } from "next";
+import Link from "next/link";
+import { Product } from "@/types/product";
+import { Category } from "@/types/category";
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { auth } from "@/lib/firebase"; // Import Firebase Authentication
 
-const PAGE_SIZE = 12
+const PAGE_SIZE = 12;
 
-export default async function NewArrivalsPage(props: {
-  searchParams: Promise<{ page?: string; category?: string }>
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const { page = "1", category } = context.query;
+  const currentPage = Number(page);
+  const selectedCategory = category ? Number(category) : null;
+
+  // Lấy token Firebase từ context, hoặc nếu cần, từ cookies hoặc session
+  const currentUser = auth.currentUser;
+  const token = currentUser ? await currentUser.getIdToken(true) : null;
+
+  if (!token) {
+    return {
+      props: {
+        error: "Token không hợp lệ hoặc người dùng chưa đăng nhập",
+      },
+    };
+  }
+
+  try {
+    // Lấy sản phẩm mới và danh mục từ API với token
+    const [productsData, categoriesData]: [Product[], Category[]] = await Promise.all([
+      getNewArrivals(200),
+      getCategories(),
+    ]);
+
+    return {
+      props: {
+        productsData,
+        categoriesData,
+        selectedCategory,
+        currentPage,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    return {
+      props: {
+        error: "Không thể tải danh sách sản phẩm hoặc danh mục.",
+      },
+    };
+  }
+}
+
+export default function NewArrivalsPage({
+  productsData,
+  categoriesData,
+  selectedCategory,
+  currentPage,
+  error,
+}: {
+  productsData: Product[];
+  categoriesData: Category[];
+  selectedCategory: number | null;
+  currentPage: number;
+  error?: string;
 }) {
-  const searchParams = await props.searchParams
-  const currentPage = Number(searchParams.page) || 1
-  const selectedCategory = searchParams.category
-    ? Number(searchParams.category)
-    : null
-
-  // Lấy dữ liệu
-  const [allProducts, categories]: [Product[], Category[]] = await Promise.all([
-    getNewArrivals(200),
-    getCategories(),
-  ])
+  if (error) {
+    return <p>{error}</p>;
+  }
 
   // 🔹 Lọc sản phẩm theo danh mục (nếu có)
   const filteredProducts = selectedCategory
-    ? allProducts.filter(
-        (p) =>
-          p.category &&
-          Number(p.category.category_id) === Number(selectedCategory)
+    ? productsData.filter(
+        (p) => p.category && Number(p.category.category_id) === Number(selectedCategory)
       )
-    : allProducts
+    : productsData;
 
-  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
+  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
 
   // Phân trang
-  const start = (currentPage - 1) * PAGE_SIZE
-  const end = start + PAGE_SIZE
-  const products = filteredProducts.slice(start, end)
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  const products = filteredProducts.slice(start, end);
 
   return (
     <main className="px-24 py-8 flex gap-8">
       {/* Sidebar danh mục */}
       <aside className="w-48">
-        <Link
-          href="/shop/new-arrivals"
-          className="font-bold mb-3 block hover:underline"
-        >
+        <Link href="/shop/new-arrivals" className="font-bold mb-3 block hover:underline">
           Sản phẩm mới
         </Link>
 
-        {categories.length > 0 ? (
+        {categoriesData.length > 0 ? (
           <ul className="space-y-2 text-sm">
-            {categories.map((cat) => (
+            {categoriesData.map((cat) => (
               <li key={cat.category_id}>
                 <Link
                   href={`/shop/new-arrivals?category=${cat.category_id}`}
@@ -99,9 +140,9 @@ export default async function NewArrivalsPage(props: {
                   <ChevronsLeft size={18} />
                 </Link>
                 <Link
-                  href={`/shop/new-arrivals?page=${
-                    currentPage - 1
-                  }${selectedCategory ? `&category=${selectedCategory}` : ""}`}
+                  href={`/shop/new-arrivals?page=${currentPage - 1}${
+                    selectedCategory ? `&category=${selectedCategory}` : ""
+                  }`}
                   className="p-2 border rounded hover:bg-gray-100 flex items-center justify-center"
                 >
                   <ChevronLeft size={18} />
@@ -118,8 +159,8 @@ export default async function NewArrivalsPage(props: {
                   (page >= currentPage - 1 && page <= currentPage + 1)
               )
               .map((page, idx, visiblePages) => {
-                const prevPage = visiblePages[idx - 1]
-                const needEllipsis = prevPage && page - prevPage > 1
+                const prevPage = visiblePages[idx - 1];
+                const needEllipsis = prevPage && page - prevPage > 1;
                 return (
                   <span key={page} className="flex items-center">
                     {needEllipsis && <span className="px-2">...</span>}
@@ -136,15 +177,15 @@ export default async function NewArrivalsPage(props: {
                       {page}
                     </Link>
                   </span>
-                )
+                );
               })}
 
             {currentPage < totalPages && (
               <>
                 <Link
-                  href={`/shop/new-arrivals?page=${
-                    currentPage + 1
-                  }${selectedCategory ? `&category=${selectedCategory}` : ""}`}
+                  href={`/shop/new-arrivals?page=${currentPage + 1}${
+                    selectedCategory ? `&category=${selectedCategory}` : ""
+                  }`}
                   className="p-2 border rounded hover:bg-gray-100 flex items-center justify-center"
                 >
                   <ChevronRight size={18} />
@@ -163,5 +204,5 @@ export default async function NewArrivalsPage(props: {
         )}
       </section>
     </main>
-  )
+  );
 }

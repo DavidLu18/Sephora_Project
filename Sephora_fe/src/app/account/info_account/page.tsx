@@ -533,24 +533,28 @@ function InfoRow({
   renderInput?: () => React.ReactNode;
 }) {
   return (
-    <div className="border-b py-3">
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="font-semibold mb-1">{label}</p>
-          {!isEditing && <p className="text-sm">{value}</p>}
+    <div className="border-b py-4">
+      {/* Khi KHÔNG chỉnh sửa */}
+      {!isEditing && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-10 w-full">
+            <p className="font-semibold w-48">{label}</p>
+            <p className="text-sm flex-1">{value}</p>
+          </div>
+          {editable && (
+            <button
+              onClick={onEdit}
+              className="text-blue-700 underline text-sm whitespace-nowrap"
+            >
+              {textAction || "Cập nhật"}
+            </button>
+          )}
         </div>
-        {editable && !isEditing && (
-          <button
-            className="text-blue-700 underline text-sm"
-            onClick={onEdit}
-          >
-            {textAction || "Edit"}
-          </button>
-        )}
-      </div>
+      )}
 
+      {/* Khi đang chỉnh sửa */}
       {isEditing && (
-        <div className="mt-3">
+        <div className="flex flex-col mt-3">
           {renderInput && renderInput()}
           <div className="flex gap-3 mt-3">
             <button

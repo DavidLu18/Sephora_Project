@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation" // 👈 import thêm
+import { usePathname } from "next/navigation" 
 import { getCategories } from "@/api"
 import type { Category } from "@/types/category"
 
@@ -10,14 +10,21 @@ export default function Navbar() {
   const [categories, setCategories] = useState<Category[]>([])
   const [activeCategory, setActiveCategory] = useState<number | null>(null)
   const [hovering, setHovering] = useState(false)
-  const pathname = usePathname() // 👈 hook này giúp biết route hiện tại
+  const pathname = usePathname() //  hook này giúp biết route hiện tại
 
   // Lấy danh mục (chạy 1 lần)
   useEffect(() => {
     getCategories()
       .then(setCategories)
-      .catch((err) => console.error("Lỗi khi tải danh mục:", err))
-  }, [])
+      .catch((err) => {
+        // Xử lý lỗi khi người dùng chưa đăng nhập
+        console.error("Lỗi khi tải danh mục:", err.message);
+        if (err.message === "Người dùng chưa đăng nhập") {
+          // Có thể hiển thị thông báo lỗi hoặc chuyển hướng đến trang đăng nhập
+          alert("Vui lòng đăng nhập để tiếp tục.");
+        }
+      });
+  }, []);
 
   
   useEffect(() => {

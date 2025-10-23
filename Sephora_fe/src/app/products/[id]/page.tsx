@@ -27,7 +27,7 @@ export default function ProductDetail() {
           setSelectedSize(sizes[0]?.trim());
         }
       } catch (error) {
-        console.error("❌ Lỗi khi tải sản phẩm:", error);
+        console.error(" Lỗi khi tải sản phẩm:", error);
       } finally {
         setLoading(false);
       }
@@ -89,6 +89,7 @@ export default function ProductDetail() {
 
     try {
       await addToCart(product.productid, quantity);
+      window.dispatchEvent(new Event("cartUpdated"));
       alert(" Đã thêm vào giỏ hàng!");
     } catch (error) {
       console.error("Lỗi khi thêm vào giỏ hàng:", error);
