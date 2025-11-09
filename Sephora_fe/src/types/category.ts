@@ -2,6 +2,6 @@
 export type Category = {
   category_id: number
   category_name: string
-  parent?: number | null
+  parent?: Category  | null
   children: Category[]
 }

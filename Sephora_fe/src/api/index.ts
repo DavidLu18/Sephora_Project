@@ -5,7 +5,7 @@ import { Category } from "@/types/category"
 import {  CartItem } from "@/types/cart";
 import { Order } from "@/types/order";
 import { Brand } from "@/types/brand";
-
+import { ProductQuestion, ProductAnswer } from "@/types/qa";
 
 
 export const API_BASE_URL = "http://127.0.0.1:8000/api";
@@ -111,10 +111,6 @@ export const getCart = async (token?: string) => {
 
   return response.json();
 };
-
-// Thêm sản phẩm vào giỏ hàng
-// api/index.ts
-// api/index.ts
 
 export const addToCart = async (productId: number, quantity: number) => {
   const token = localStorage.getItem('token') || undefined;
@@ -240,5 +236,73 @@ export const updateOrderStatus = async (orderId: number, status: string, token: 
   });
   return res.ok;
 };
+// ==============================
+// 🧩 PRODUCT Q&A (Questions & Answers)
+// ==============================
+
+// 📌 Lấy danh sách câu hỏi theo sản phẩm
+export async function getQuestionsByProduct(productId: number): Promise<ProductQuestion[]> {
+  return fetchAPI(`/products/${productId}/questions/`);
+}
+
+// 📌 Tạo câu hỏi mới
+export async function createQuestion(
+  productId: number,
+  content: string
+): Promise<ProductQuestion> {
+  const res = await fetch(`${API_BASE_URL}/products/${productId}/questions/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Lỗi khi gửi câu hỏi: ${err}`);
+  }
+
+  return res.json();
+}
+
+// Gửi trả lời cho câu hỏi (chỉ dành cho nhân viên)
+export async function createAnswer(questionId: number, content: string, token?: string): Promise<ProductAnswer> {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const res = await fetch(`${API_BASE_URL}/questions/${questionId}/answers/`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ content }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Lỗi khi gửi câu trả lời: ${err}`);
+  }
+
+  return res.json();
+}
+
+// 📌 Đánh dấu "Hữu ích"
+export async function markQuestionHelpful(questionId: number, token?: string): Promise<{ helpful_count: number }> {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const res = await fetch(`${API_BASE_URL}/questions/${questionId}/helpful/`, {
+    method: "POST",
+    headers,
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Lỗi khi đánh dấu hữu ích: ${err}`);
+  }
+
+  return res.json();
+}
 
 export default fetchAPI;
