@@ -36,7 +36,8 @@ class Product(models.Model):
     size = models.CharField(max_length=255, null=True)
     description = models.TextField(null=True)
     highlight = models.TextField(db_column='highlights', blank=True, null=True)
-
+    avg_rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+    review_count = models.IntegerField(default=0, null=True, blank=True)
     class Meta:
         db_table = 'products'
         managed = False
@@ -46,21 +47,4 @@ class Product(models.Model):
     
 
 
-class ProductReview(models.Model):
-    reviewid = models.AutoField(primary_key=True)
-    product = models.ForeignKey(
-        'Product',
-        on_delete=models.CASCADE,
-        db_column='productid',
-        to_field='productid',
-        related_name='reviews'
-    )
-    userid = models.IntegerField(null=True, blank=True)
-    rating = models.IntegerField()
-    review_text = models.TextField(null=True, blank=True)
-    review_title = models.CharField(max_length=255, null=True, blank=True)
-    submission_time = models.DateTimeField(null=True, blank=True)
 
-    class Meta:
-        db_table = 'productreviews'
-        managed = False

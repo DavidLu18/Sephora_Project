@@ -2,7 +2,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/types/product";
-// import { Category } from "@/types/category";
 import { useState } from "react";
 import { Heart } from "lucide-react";
 
@@ -17,7 +16,7 @@ export default function ProductCard({ product }: Props) {
   const originalPrice = product.price ? `$${product.price}` : null;
   const isOnSale = product.sale_price && product.sale_price < product.price;
 
-  // ⭐️ Rating luôn đủ 5 sao
+  // Rating luôn đủ 5 sao
   const getRatingStars = (rating: number) => {
     const full = Math.floor(rating);
     const empty = 5 - full;
@@ -26,7 +25,7 @@ export default function ProductCard({ product }: Props) {
 
   const ratingStars = getRatingStars(product.avg_rating || 0);
 
-  // ❤️ Yêu thích
+  // Yêu thích
   const [liked, setLiked] = useState(false);
   const handleLikeClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -38,11 +37,11 @@ export default function ProductCard({ product }: Props) {
 
   const USD_TO_VND = 25000; // bạn có thể điều chỉnh tỉ giá ở đây
 
-const convertToVND = (usdValue: number | string | undefined) => {
-  if (!usdValue) return "N/A";
-  const value = Number(usdValue) * USD_TO_VND;
-  return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-};
+  const convertToVND = (usdValue: number | string | undefined) => {
+    if (!usdValue) return "N/A";
+    const value = Number(usdValue) * USD_TO_VND;
+    return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+  };
 
   return (
     <Link href={`/products/${product.productid}`} className="block">

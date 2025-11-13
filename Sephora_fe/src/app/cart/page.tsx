@@ -8,7 +8,7 @@ import { Cart, CartItem } from '@/types/cart';
 import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-
+import { convertToVND } from "@/lib/utils";
 export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +52,7 @@ export default function CartPage() {
     if (token) {
       const res = await checkoutCart("COD", token); // Thanh toán giỏ hàng với token
       alert(res.message || "Thanh toán thành công!");
+      window.dispatchEvent(new Event("cartUpdated"));
       const updated = await getCart(token); // Cập nhật lại giỏ hàng sau khi thanh toán
       setCart(updated);
     }
@@ -97,7 +98,9 @@ export default function CartPage() {
                     <p className="font-semibold text-sm uppercase text-gray-600">{item.product.brand_name || "Unknown Brand"}</p>
                     <p className="font-medium text-lg mt-1">{item.product.product_name}</p>
                     <p className="text-sm text-gray-500 mt-1">SIZE {item.product.size || "—"}</p>
-                    <p className="font-semibold text-base mt-2">${Number(item.product.price || 0).toFixed(2)}</p>
+                    <p className="font-semibold text-base mt-2">
+                      {convertToVND(item.product.price)}
+                    </p>
                   </div>
 
                   <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
@@ -133,7 +136,7 @@ export default function CartPage() {
         <div className="space-y-6">
           <div className="border border-gray-200 rounded-xl shadow-sm p-5">
             <h3 className="font-semibold text-lg mb-3">Tổng tiền</h3>
-            <p className="text-xl font-bold mb-2">${total.toLocaleString("vi-VN", { minimumFractionDigits: 2 })}</p>
+            <p className="text-xl font-bold mb-2"> {convertToVND(total)}</p>
             <p className="text-sm text-gray-500 mb-5">Phí vận chuyển & thuế tính ở bước thanh toán.</p>
 
             <button

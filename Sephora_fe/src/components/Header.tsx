@@ -18,12 +18,9 @@ export default function Header() {
   const [cartCount, setCartCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Toggle menu for Wishlist or Cart
   const toggleMenu = (menu: string) => {
     setOpenMenu(openMenu === menu ? null : menu);
   };
-
-  // Fetch cart count based on user's token
   const fetchCart = async (token: string) => {
     try {
       const res = await fetch("http://127.0.0.1:8000/api/cart/", {
@@ -152,9 +149,9 @@ export default function Header() {
 
   return (
     <header className="border-b relative">
-      <div className="bg-purple-200 text-center text-sm py-2">
-        <strong>Pick up to 6 FREE Trial Sizes</strong> with $105 Spend. Online only. *Terms apply. Use code{" "}
-        <strong className="text-red-600">BEAUTYSMGM</strong>
+      <div className="bg-red-900 text-center text-sm py-2 h-[60px] flex items-center justify-center  text-white">
+        <strong >Miễn phí vận chuyển toàn quốc với mọi đơn hàng</strong>. Giảm ngay 30% khi lần đầu nhập mã:--{" "}
+        <strong className="text-yellow-200">BEAUTYSMGM</strong>
       </div>
 
       <div className="flex items-center justify-start px-10 h-18 gap-8">

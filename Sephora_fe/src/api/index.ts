@@ -70,23 +70,49 @@ export async function getBrands(): Promise<Brand[]> {
 }
 
 
-// Lấy sản phẩm theo danh mục và phân trang
+interface ProductResponse {
+  count: number;
+  results: Product[];
+}
+
 export async function getProductsByCategory(params: {
   category_ids?: number[];
   page?: number;
   size?: number;
-}): Promise<Product[]> {
+  min_price?: number;
+  max_price?: number;
+  rating?: number;
+  sort_by?: string;
+  brand_ids?: number[];
+}): Promise<ProductResponse> {
   const query = new URLSearchParams();
 
   if (params.category_ids && params.category_ids.length > 0) {
-    params.category_ids.forEach((id) => query.append("category_ids", id.toString()));
+    params.category_ids.forEach((id) =>
+      query.append("category_ids", id.toString())
+    );
   }
 
   if (params.page) query.append("page", params.page.toString());
   if (params.size) query.append("size", params.size.toString());
+  if (params.min_price) query.append("min_price", params.min_price.toString());
+  if (params.max_price) query.append("max_price", params.max_price.toString());
+  if (params.rating) query.append("rating", params.rating.toString());
+  if (params.sort_by) query.append("sort_by", params.sort_by);
+  if (params.brand_ids && params.brand_ids.length > 0) {
+    params.brand_ids.forEach((id) =>
+      query.append("brand_ids", id.toString())
+    );
+  }
 
-  return fetchAPI(`/products/products-by-categories/?${query.toString()}`);
+  // ✅ Gọi API và ép kiểu dữ liệu trả về
+  const data = await fetchAPI(
+    `/products/products-by-categories/?${query.toString()}`
+  );
+
+  return data as ProductResponse;
 }
+
 
 
 

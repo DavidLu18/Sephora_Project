@@ -8,7 +8,7 @@ import {
   markQuestionHelpful,
 } from "@/api";
 
-// Hàm tính thời gian dạng "x days ago"
+// ⏰ Hàm hiển thị thời gian kiểu "x days ago"
 function timeAgo(dateString: string) {
   const date = new Date(dateString);
   const diff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
@@ -22,10 +22,11 @@ export default function ProductQA({ productId }: { productId: number }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [questionText, setQuestionText] = useState("");
-  const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const [visibleCount, setVisibleCount] = useState(1); // mặc định hiển thị 1 câu hỏi
+  const showStep = 4; // mỗi lần mở thêm 4 câu hỏi
+  const [expandedAnswers, setExpandedAnswers] = useState<Record<number, boolean>>({});
 
-  // 🧩 Tải danh sách câu hỏi
+  // 🔄 Load câu hỏi từ API
   useEffect(() => {
     const loadQuestions = async () => {
       setLoading(true);
@@ -41,7 +42,7 @@ export default function ProductQA({ productId }: { productId: number }) {
     loadQuestions();
   }, [productId]);
 
-  // 🧩 Gửi câu hỏi mới (ẩn danh)
+  // Gửi câu hỏi mới
   const handleSubmit = async () => {
     if (!questionText.trim()) return;
     try {
@@ -55,7 +56,7 @@ export default function ProductQA({ productId }: { productId: number }) {
     }
   };
 
-  // 🧩 Đánh dấu hữu ích
+  // Đánh dấu câu hỏi là "Hữu ích"
   const handleHelpful = async (id: number) => {
     try {
       const { helpful_count } = await markQuestionHelpful(id);
@@ -67,18 +68,20 @@ export default function ProductQA({ productId }: { productId: number }) {
     }
   };
 
-  // 🧩 Pagination
-  const startIdx = (page - 1) * pageSize;
-  const paginated = questions.slice(startIdx, startIdx + pageSize);
-  const totalPages = Math.ceil(questions.length / pageSize);
+  // 🔽 Mở rộng/thu gọn câu trả lời
+  const toggleAnswers = (questionId: number) => {
+    setExpandedAnswers((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }));
+  };
+
+  const visibleQuestions = questions.slice(0, visibleCount);
 
   return (
-    <section className="mt-14 border-t border-b-2 pt-8">
-      {/* Header */}
+    <section className=" border-gray-200">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">
-          Hỏi & Đáp ({questions.length})
-        </h2>
+        <h2 className="text-xl font-semibold">Hỏi & Đáp ({questions.length})</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="text-blue-600 text-sm hover:underline"
@@ -86,10 +89,9 @@ export default function ProductQA({ productId }: { productId: number }) {
           Đưa ra câu hỏi
         </button>
       </div>
-
-      {/* Form hỏi */}
+      {/* Form đặt câu hỏi */}
       {showForm && (
-        <div className="mb-6 p-4 rounded-xl">
+        <div className="mb-6 p-4 rounded-xl border border-gray-200">
           <textarea
             value={questionText}
             onChange={(e) => setQuestionText(e.target.value)}
@@ -98,110 +100,120 @@ export default function ProductQA({ productId }: { productId: number }) {
           />
           <button
             onClick={handleSubmit}
-            className="mt-2 px-4 py-2 bg-white text-black rounded-lg text-sm hover:bg-gray-200 border"
+            className="mt-3 px-4 py-2 bg-black text-white rounded-full text-sm hover:bg-gray-800 transition"
           >
             Xác nhận
           </button>
         </div>
       )}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Cột trái: Filter */}
+        <aside className="col-span-3 hidden md:block">
+          <div className=" p-4">
+            {/* Sort chọn */}
+            <select className=" bg-gray-100 border-none rounded-full p-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-gray-300">
+              <option value="recent">Mới nhất</option>
+              <option value="helpful">Cũ nhất</option>
+              <option value="answered">Nhiều trả lời nhất</option>
+            </select>
+          </div>
+        </aside>
 
-      {/* Danh sách câu hỏi */}
-      {loading ? (
-        <p className="text-gray-500 text-sm">Đang tải Q&A…</p>
-      ) : questions.length === 0 ? (
-        <p className="text-gray-500 italic text-sm">
-          Chưa có câu hỏi nào cho sản phẩm này. Hãy là người đầu tiên đặt câu hỏi!
-        </p>
-      ) : (
-        <div>
-          {paginated.map((q) => (
-           <div
-              key={q.id}
-              className="pb-5 mb-5 relative after:content-[''] after:block after:h-[1px] after:bg-gray-200 after:mt-5"
-            >
-              <p className="font-semibold">Q: {q.content}</p>
-              <p className="text-gray-500 text-sm mb-2">
-                Đã hỏi {timeAgo(q.created_at)}
-              </p>
-
-              {/* Trả lời */}
-              {q.answers?.length ? (
-                q.answers.map((a) => (
-                  <div key={a.id} className="pl-5 mb-2">
-                    <p className="">A: {a.content}</p>
-                    <p className="text-gray-500 text-sm">
-                      Đã trả lời {timeAgo(a.created_at)} 
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-400 italic pl-5 mb-2">
-                  Chưa có câu trả lời nào.
-                </p>
-              )}
-
-              {/* Nút hành động */}
-              <div className="flex items-center text-xs text-gray-500 gap-3 pl-5">
-                <button
-                  onClick={() => handleHelpful(q.id)}
-                  className="hover:underline"
+        {/* Cột phải: Danh sách Q&A */}
+        <div className="col-span-12 md:col-span-9">
+          {loading ? (
+            <p className="text-gray-500 text-sm">Đang tải Q&A…</p>
+          ) : questions.length === 0 ? (
+            <p className="text-gray-500 italic text-sm">
+              Chưa có câu hỏi nào cho sản phẩm này.
+            </p>
+          ) : (
+            <div>
+              {visibleQuestions.map((q) => (
+                <div
+                  key={q.id}
+                  className="pb-4 mb-4 border-b border-gray-200"
                 >
-                  Hữu ích? △
-                </button>
-                <span>({q.helpful_count || 0})</span>
-                <button className="hover:underline text-blue-600">
-                  Trả lời câu hỏi này.
-                </button>
+                  <p className="font-medium">Q: {q.content}</p>
+                  <p className="text-gray-500 text-sm mb-2">
+                    Đã hỏi {timeAgo(q.created_at)}
+                  </p>
+
+                  {/* Trả lời */}
+                  {q.answers?.length ? (
+                    <>
+                      {(expandedAnswers[q.id]
+                        ? q.answers
+                        : q.answers.slice(0, 1)
+                      ).map((a) => (
+                        <div key={a.id} className="pl-5 mb-2">
+                          <p>A: {a.content}</p>
+                          <p className="text-gray-500 text-sm">
+                            Đã trả lời {timeAgo(a.created_at)}
+                          </p>
+                        </div>
+                      ))}
+                      {q.answers.length > 1 && (
+                        <button
+                          onClick={() => toggleAnswers(q.id)}
+                          className="text-blue-600 text-xs pl-5 hover:underline"
+                        >
+                          {expandedAnswers[q.id]
+                            ? "Ẩn bớt câu trả lời"
+                            : `Xem thêm ${q.answers.length - 1} câu trả lời`}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic pl-5 mb-2">
+                      Chưa có câu trả lời nào.
+                    </p>
+                  )}
+
+                  {/* Nút hành động */}
+                  <div className="flex items-center text-xs text-gray-500 gap-3 pl-5 mt-1">
+                    <button
+                      onClick={() => handleHelpful(q.id)}
+                      className="hover:underline"
+                    >
+                      Hữu ích? △
+                    </button>
+                    <span>({q.helpful_count || 0})</span>
+                    <button className="hover:underline text-blue-600">
+                      Trả lời câu hỏi này.
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Nút Show more / Thu gọn */}
+              <div className="text-left mt-4 pb-4">
+                {visibleCount < questions.length ? (
+                  <button
+                    onClick={() =>
+                      setVisibleCount((prev) =>
+                        Math.min(prev + showStep, questions.length)
+                      )
+                    }
+                    className="border border-gray-300 px-6 py-2 rounded-full text-sm hover:bg-gray-100 transition"
+                  >
+                    Xem thêm câu hỏi và trả lời
+                  </button>
+                ) : (
+                  questions.length > 1 && (
+                    <button
+                      onClick={() => setVisibleCount(1)}
+                      className="border border-gray-300 px-6 py-2 rounded-full text-sm hover:bg-gray-100 transition"
+                    >
+                      Thu gọn lại
+                    </button>
+                  )
+                )}
               </div>
             </div>
-          ))}
-
-          {/* Pagination */}
-          <div className="flex justify-center items-center gap-2 mt-4">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className={`px-2 py-1 rounded ${
-                page === 1
-                  ? "text-gray-400 cursor-not-allowed"
-                  : "hover:bg-gray-200"
-              }`}
-            >
-              &lt;
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i + 1)}
-                className={`px-3 py-1 border rounded ${
-                  page === i + 1
-                    ? "bg-black text-white"
-                    : "hover:bg-gray-200 text-gray-700"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className={`px-2 py-1 rounded ${
-                page === totalPages
-                  ? "text-gray-400 cursor-not-allowed"
-                  : "hover:bg-gray-200"
-              }`}
-            >
-              &gt;
-            </button>
-          </div>
-
-          <div className="text-center mt-6">
-            <button className="border px-5 py-2 rounded-full text-sm hover:bg-gray-100">
-              Show more Questions & Answers
-            </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }

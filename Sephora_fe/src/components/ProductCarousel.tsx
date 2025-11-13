@@ -5,17 +5,13 @@ import { Product } from "@/types/product"
 interface Props {
   title: string
   products: Product[]
+  link?: string
 }
 
-export default function ProductCarousel({ title, products }: Props) {
+export default function ProductCarousel({ title, products ,link}: Props) {
   // Gán link theo title
-  let linkHref = "/shop"
+  const linkHref = link || "/shop"
 
-  if (title.toLowerCase().includes("chosen")) {
-    linkHref = "/shop/chosen-for-you"
-  } else if (title.toLowerCase().includes("new")) {
-    linkHref = "/shop/new-arrivals"
-  }
 
   return (
     <section className="px-24 py-6">

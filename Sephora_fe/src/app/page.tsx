@@ -30,8 +30,8 @@ export default function Home() {
   return (
     <>
       <HeroBanner />
-      <ProductCarousel title="Dành riêng cho bạn" products={chosenProducts} />
-      <ProductCarousel title="Sản phẩm mới ra mắt" products={newArrivals} />
+      <ProductCarousel title="Dành riêng cho bạn" products={chosenProducts} link="/shop/chosen-for-you" />
+      <ProductCarousel title="Sản phẩm mới ra mắt" products={newArrivals} link="/shop/new-arrivals"/>
     </>
   )
 }

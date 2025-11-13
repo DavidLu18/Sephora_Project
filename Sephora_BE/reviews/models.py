@@ -11,15 +11,9 @@ class ProductReview(models.Model):
         on_delete=models.CASCADE,
         db_column='productid',
         to_field='productid',
-        related_name='reviews_extra'
+        related_name='reviews'
     )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        db_column='userid'
-    )
+    userid = models.IntegerField(null=False) 
     rating = models.IntegerField()
     is_recommended = models.BooleanField(null=True)
     review_text = models.TextField(null=True, blank=True)
@@ -31,7 +25,6 @@ class ProductReview(models.Model):
     sentiment = models.CharField(max_length=20, null=True, blank=True)
     review_images = models.TextField(null=True, blank=True)
     review_videos = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(db_column='submission_time', null=True, blank=True)
 
     class Meta:
         db_table = 'productreviews'

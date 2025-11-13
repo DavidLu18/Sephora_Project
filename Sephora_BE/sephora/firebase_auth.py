@@ -5,12 +5,11 @@ from sephora import firebase_config  # đảm bảo Firebase đã init
 
 
 class FirebaseUser:
-    """Lớp user giả định cho Firebase"""
     def __init__(self, decoded_token):
         for k, v in decoded_token.items():
             setattr(self, k, v)
         self.is_authenticated = True
-        self.is_active = True  # fix lỗi DRF kiểm tra user.is_active
+        self.is_active = True  
 
     def __str__(self):
         return self.email if hasattr(self, "email") else self.uid

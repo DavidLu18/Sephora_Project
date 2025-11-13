@@ -3,20 +3,23 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from .models import Orders, OrderItems
-from .serializers import OrdersSerializer
+from .serializers import  OrderSerializer
 from cart.models import Cart, CartItems
 from users.models import User  
 from django.utils import timezone
 from datetime import timedelta
 
 class OrderViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    API cho lịch sử đơn hàng: /api/orders/
-    Firebase đã lưu firebase_uid trong bảng users từ khi đăng nhập.
-    """
-    serializer_class = OrdersSerializer
+    serializer_class =  OrderSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_context(self):
+        """Truyền context vào serializer để có thể lấy request.user"""
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        print("DEBUG >>> get_serializer_context called")
+        return context
+    
     def get_userid_from_firebase(self, firebase_uid):
         """Lấy user.id dựa theo firebase_uid"""
         try:
@@ -28,14 +31,15 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user_uid = getattr(self.request.user, "uid", None)
         if not user_uid:
-            return Response({"error": "Bạn chưa đăng nhập"}, status=401)
+            # Nếu chưa đăng nhập thì trả queryset rỗng
+            return Orders.objects.none()
 
         user_id = self.get_userid_from_firebase(user_uid)
         if not user_id:
-            return Response({"error": "Không tìm thấy người dùng"}, status=404)
+            return Orders.objects.none()
 
         return Orders.objects.filter(userid=user_id).order_by("-createdat")
-
+    
     def update(self, request, pk=None):
         order = self.get_object()
         data = request.data
@@ -58,50 +62,6 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(serializer.data)
 
         return Response({"detail": "Cannot update order status"}, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def reorder_order(request, order_id):
-    """
-    Mua lại toàn bộ sản phẩm trong đơn hàng cũ (Firebase Auth + model dùng *id thay vì ForeignKey*).
-    """
-    # Lấy UID từ FirebaseUser
-    user_uid = getattr(request.user, "uid", None)
-    if not user_uid:
-        return Response({"error": "Không xác định được người dùng."}, status=status.HTTP_401_UNAUTHORIZED)
-
-    # Map Firebase UID → User thực trong DB
-    try:
-        user = User.objects.get(firebase_uid=user_uid)
-    except User.DoesNotExist:
-        return Response({"error": "Người dùng chưa được lưu trong hệ thống."}, status=status.HTTP_404_NOT_FOUND)
-
-    # Lấy đơn hàng của user đó
-    try:
-        order = Orders.objects.get(orderid=order_id, userid=user.userid)
-    except Orders.DoesNotExist:
-        return Response({"error": "Không tìm thấy đơn hàng."}, status=status.HTTP_404_NOT_FOUND)
-
-    # Lấy hoặc tạo giỏ hàng cho user đó
-    cart, created = Cart.objects.get_or_create(userid=user.userid)
-
-    # Lặp qua các sản phẩm trong OrderItems (dùng đúng field orderid)
-    added_count = 0
-    for item in OrderItems.objects.filter(orderid=order.orderid):
-        # Kiểm tra tránh lỗi sản phẩm bị xóa
-        if not item.productid:
-            continue
-        CartItems.objects.create(
-            cartid=cart.cartid,
-            productid=item.productid,
-            quantity=item.quantity,
-        )
-        added_count += 1
-
-    return Response(
-        {"message": f"Đã thêm {added_count} sản phẩm vào giỏ hàng."},
-        status=status.HTTP_200_OK,
-    )
 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])

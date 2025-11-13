@@ -18,7 +18,6 @@ import {
 } from "lucide-react"
 
 const PAGE_SIZE = 12
-
 export default function CategoryPage() {
   const params = useParams()
   const category_id = Number(params.category_id)

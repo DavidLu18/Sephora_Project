@@ -43,7 +43,7 @@ class CategorySerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     brand_name = serializers.CharField(source='brand.brand_name', read_only=True)
     highlight = serializers.SerializerMethodField()
-    avg_rating = serializers.FloatField(read_only=True)
+    avg_rating = serializers.SerializerMethodField(read_only=True)
     reviews_count = serializers.IntegerField(read_only=True)
     category = CategorySerializer(read_only=True)
     class Meta:
@@ -60,3 +60,9 @@ class ProductSerializer(serializers.ModelSerializer):
             return literal_eval(obj.highlight)
         except Exception:
             return []
+    def get_avg_rating(self, obj):
+        # Nếu annotate thì lấy từ calculated_avg_rating
+        if hasattr(obj, "calculated_avg_rating") and obj.calculated_avg_rating is not None:
+            return round(float(obj.calculated_avg_rating), 2)
+        # Nếu không annotate thì trả về giá trị gốc trong DB
+        return float(obj.avg_rating) if obj.avg_rating is not None else 0.0

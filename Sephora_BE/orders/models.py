@@ -1,5 +1,4 @@
 from django.db import models
-
 class Orders(models.Model):
     orderid = models.AutoField(primary_key=True)
     userid = models.IntegerField()

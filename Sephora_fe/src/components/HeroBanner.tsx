@@ -56,7 +56,7 @@ export default function HeroBanner() {
         <div className="p-4 bg-purple-200">
           <h3 className="font-bold text-lg">Hello, Holiday Vaults!</h3>
           <p className="text-sm">
-            Tràn ngập những món đồ đẹp nhất. Cùng khám phá cửa hàng năm nay.
+            Tràn ngập những món đồ đẹp nhất. Cùng khám phá cửa hàng.
           </p>
           <button className="mt-2 underline text-sm font-semibold">
             MUA NGAY

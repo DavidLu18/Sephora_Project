@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Image from "next/image";
-import { ThumbsUp, ThumbsDown, Check } from "lucide-react";
+import { ThumbsUp, Check } from "lucide-react";
 
 interface Review {
   reviewid: number;
@@ -9,7 +8,6 @@ interface Review {
   rating: number;
   review_text: string;
   review_title?: string;
-  review_images?: string[];
   is_recommended?: boolean;
   helpful_count: number;
   created_at: string;
@@ -38,101 +36,80 @@ const ReviewList = ({ productId }: { productId: number }) => {
   };
 
   if (reviews.length === 0)
-    return <p className="text-gray-500 mt-4">Chưa có đánh giá nào.</p>;
+    return <p className="text-gray-500 mt-4 text-center">Chưa có đánh giá nào.</p>;
 
   return (
-    <div className="mt-8 space-y-8">
-      {reviews.map((r) => (
-        <div
-          key={r.reviewid}
-          className="flex flex-col md:flex-row justify-between  pb-6"
-        >
-          {/* LEFT - Content */}
-          <div className="flex-1 pr-4">
-            {/* Rating */}
-            <div className="flex items-center gap-1 mb-2">
-              <span className="text-yellow-400 text-lg">
+    <div className="mt-10">
+      {/* 🔹 DANH SÁCH REVIEW */}
+      <div className="space-y-10">
+        {reviews.map((r) => (
+          <div
+            key={r.reviewid}
+            className="flex flex-col md:flex-row justify-between border-b border-gray-200 pb-6"
+          >
+            {/* LEFT: Rating + Info */}
+            <div className="w-full md:w-[180px] flex flex-col items-start text-sm text-gray-700 mb-3 md:mb-0">
+              <span className="text-yellow-500 text-lg">
                 {"★".repeat(r.rating) + "☆".repeat(5 - r.rating)}
               </span>
-              <span className="text-gray-400 text-sm ml-1">
-                {new Date(r.created_at).toLocaleDateString()}
+              <span className="text-gray-400 text-xs mt-1">
+                {new Date(r.created_at).toLocaleDateString("vi-VN")}
               </span>
+              <span className="text-green-600 text-xs mt-1 font-medium">
+                Đã mua hàng
+              </span>
+              {r.is_recommended && (
+                <span className="text-green-600 text-xs mt-1 flex items-center">
+                  <Check className="w-3 h-3 mr-1" /> Recommended
+                </span>
+              )}
             </div>
 
-            {/* Title */}
-            {r.review_title && (
-              <h3 className="font-semibold text-gray-900 mb-1">
-                {r.review_title}
-              </h3>
-            )}
+            {/* MIDDLE: Review content */}
+            <div className="flex-1 md:px-4">
+              {r.review_title && (
+                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">
+                  {r.review_title}
+                </h4>
+              )}
+              <p className="text-gray-700 text-sm mb-3 leading-relaxed">
+                {r.review_text}
+              </p>
 
-            {/* Review text */}
-            <p className="text-gray-700 text-sm whitespace-pre-line mb-3">
-              {r.review_text}
-            </p>
-
-            {/* Recommended */}
-            {r.is_recommended && (
-              <div className="flex items-center text-green-600 text-sm mb-2">
-                <Check className="w-4 h-4 mr-1" /> Recommended
+              <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
+                <button
+                  onClick={() => handleLike(r.reviewid)}
+                  className="flex items-center gap-1 hover:text-red-600 transition-all"
+                >
+                  <ThumbsUp className="w-4 h-4" />
+                  Hữu ích ({r.helpful_count})
+                </button>
               </div>
-            )}
+            </div>
 
-            {/* Images */}
-            {r.review_images && r.review_images.length > 0 && (
-              <div className="flex gap-3 mt-2">
-                {r.review_images.map((img, i) => (
-                  <Image
-                    key={i}
-                    src={img}
-                    alt="review-img"
-                    width={80}
-                    height={80}
-                    className="rounded-md border object-cover"
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Helpful actions */}
-            <div className="flex items-center gap-3 mt-3 text-sm text-gray-600">
-              <button
-                onClick={() => handleLike(r.reviewid)}
-                className="flex items-center gap-1 hover:text-blue-600"
-              >
-                <ThumbsUp className="w-4 h-4" /> Helpful ({r.helpful_count})
-              </button>
-              <div className="flex items-center gap-1 text-gray-400">
-                <ThumbsDown className="w-4 h-4" /> (0)
-              </div>
+            {/* RIGHT: User name only */}
+            <div className="mt-4 md:mt-0 md:pl-6 md:border-l border-gray-200 flex items-center justify-center text-right md:min-w-[150px]">
+              <p className="text-sm font-semibold text-gray-800">
+                {r.user_name}
+              </p>
             </div>
           </div>
+        ))}
+      </div>
 
-          {/* RIGHT - User info */}
-          <div className="flex flex-col items-center mt-4 md:mt-0 min-w-[120px]">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold">
-              {r.user_name?.[0]?.toUpperCase() || "U"}
-            </div>
-            <p className="text-sm font-medium text-gray-800 mt-2">
-              {r.user_name}
-            </p>
-          </div>
-        </div>
-      ))}
-
-      {/* Pagination */}
-      <div className="flex items-center justify-center gap-3 mt-6">
+      {/* 🔹 PHÂN TRANG */}
+      <div className="flex items-center justify-center gap-4 mt-8 pb-10">
         <button
           disabled={page <= 1}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
-          className="px-3 py-1 border rounded disabled:opacity-40"
+          className="px-3 py-1 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-40"
         >
           {"<"}
         </button>
-        <span className="text-sm text-gray-600">Trang {page}</span>
+        <span className="text-sm font-medium text-gray-700">{page}</span>
         <button
           onClick={() => setPage((p) => p + 1)}
-          className="px-3 py-1 border rounded"
+          className="px-3 py-1 rounded text-gray-600 hover:bg-gray-100"
         >
           {">"}
         </button>

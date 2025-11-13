@@ -29,16 +29,12 @@ export default function ReviewSummary({ reviews }: ReviewSummaryProps) {
   }));
 
   return (
-    <section className="pt-10 pb-8 bg-white ">
+    <section className=" bg-white ">
       <div className="max-w-5xl mx-auto">
         {/* Tiêu đề */}
         <h2 className="text-xl font-bold text-gray-900 mb-2">
-          Đánh giá & nhận xét ({total >= 1000 ? `${(total / 1000).toFixed(1)}K` : total})
+          Đánh giá & Nhận xét ({total >= 1000 ? `${(total / 1000).toFixed(1)}K` : total})
         </h2>
-        <a href="#" className="text-blue-600 text-sm hover:underline">
-          Viết nhận xét
-        </a>
-
         <div className="flex flex-col md:flex-row justify-between mt-6">
           {/* LEFT - Summary */}
           <div className="w-full md:w-1/3">
@@ -74,9 +70,6 @@ export default function ReviewSummary({ reviews }: ReviewSummaryProps) {
                 {total.toLocaleString()} Lượt nhận xét*
               </span>
             </div>
-
-
-            
           </div>
         </div>
       </div>

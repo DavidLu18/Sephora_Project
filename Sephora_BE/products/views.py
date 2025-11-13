@@ -15,7 +15,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             Product.objects
             .annotate(
                 reviews_count=Count('reviews', distinct=True),
-                avg_rating=Avg('reviews__rating')
+                calculated_avg_rating=Avg('reviews__rating')
             )
             .select_related('brand', 'category')
             .order_by('productid')
@@ -40,7 +40,7 @@ def chosen_for_you(request):
         Product.objects
         .annotate(
             reviews_count=Count('reviews', distinct=True),
-            avg_rating=Avg('reviews__rating')
+            calculated_avg_rating=Avg('reviews__rating')  # ✅ đổi tên ở đây
         )
         .select_related('brand', 'category')
     )
@@ -63,41 +63,32 @@ def chosen_for_you(request):
 
     rating = request.GET.get("rating")
     if rating:
-        # ⚠️ Ở đây phải filter trên annotation, nên phải annotate trước filter này
-        products = products.filter(avg_rating__gte=float(rating))
+        products = products.filter(calculated_avg_rating__gte=float(rating))
 
     sort_by = request.GET.get("sort_by")
     if sort_by == "sale":
         products = products.filter(sale_price__lt=F('price'))
 
-    products = products.order_by('-reviews_count', '-avg_rating')[:50]
+    products = products.order_by('-reviews_count', '-calculated_avg_rating')[:50]
 
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
 
-
-# --- NEW ARRIVALS ---
 @api_view(['GET'])
 def new_arrivals(request):
-    """
-    Sản phẩm mới nhất (lấy theo productid lớn nhất)
-    """
     products = Product.objects.all().order_by('-productid')[:50]
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
 def products_by_categories(request):
-    # Lấy danh sách ID danh mục từ tham số query
-    category_ids = request.GET.getlist("category_ids")  # Dạng danh sách [1, 2, 3]
-
-    # Khởi tạo queryset lấy tất cả sản phẩm
+    category_ids = request.GET.getlist("category_ids")
     products = (
         Product.objects
         .annotate(
             reviews_count=Count('reviews', distinct=True),
-            avg_rating=Avg('reviews__rating')
+            calculated_avg_rating=Avg('reviews__rating')
         )
         .select_related('brand', 'category')
     )
@@ -134,7 +125,7 @@ def products_by_categories(request):
     # Lọc theo đánh giá
     rating = request.GET.get("rating")
     if rating:
-        products = products.filter(avg_rating__gte=float(rating))
+        products = products.filter(calculated_avg_rating__gte=float(rating))
 
     # Sắp xếp sản phẩm
     sort_by = request.GET.get("sort_by")
@@ -145,7 +136,7 @@ def products_by_categories(request):
     elif sort_by == "price_desc":
         products = products.order_by('-price')
     else:
-        products = products.order_by('-reviews_count', '-avg_rating')  # Mặc định
+        products = products.order_by('-reviews_count', '-calculated_avg_rating')  # Mặc định
 
     # Phân trang kết quả
     paginator = ProductPagination()
@@ -168,7 +159,7 @@ def search_products(request):
         Product.objects
         .annotate(
             reviews_count=Count('reviews', distinct=True),
-            avg_rating=Avg('reviews__rating')
+            calculated_avg_rating=Avg('reviews__rating')
         )
         .select_related('brand', 'category')
     )
@@ -187,7 +178,7 @@ def search_products(request):
 
     # Lọc theo rating
     if rating:
-        products = products.filter(avg_rating__gte=float(rating))
+        products = products.filter(calculated_avg_rating__gte=float(rating))
 
     # Lọc theo brand
     if brand_ids:
@@ -201,7 +192,7 @@ def search_products(request):
     elif sort_by == "price_desc":
         products = products.order_by("-price")
     elif sort_by == "rating_desc":
-        products = products.order_by("-avg_rating")
+        products = products.order_by("-calculated_avg_rating")
     else:
         products = products.order_by("-productid")
 
