@@ -5,7 +5,7 @@ from firebase_admin import auth
 from firebase_admin._auth_utils import UserNotFoundError
 from .models import User
 from .serializers import UserSerializer
-from sephora.firebase_config import *   # ✅ Thêm dòng này để khởi tạo firebase_admin
+from sephora.firebase_config import *   #  Thêm dòng này để khởi tạo firebase_admin
 import traceback
 from datetime import date
 
@@ -26,12 +26,12 @@ def check_email(request):
         except UserNotFoundError:
             return Response({"message": "Email chưa tồn tại."}, status=200)
         except Exception as err:
-            print("🔥 Firebase error:", err)
+            print(" Firebase error:", err)
             traceback.print_exc()
             return Response({"message": str(err)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     except Exception as e:
-        print("🔥 Outer error:", e)
+        print(" Outer error:", e)
         traceback.print_exc()
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -99,7 +99,7 @@ def register_user(request):
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        print("🔥 Error in register_user:", e)
+        print(" Error in register_user:", e)
         traceback.print_exc()
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

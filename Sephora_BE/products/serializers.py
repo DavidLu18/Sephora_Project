@@ -15,7 +15,11 @@ class RecursiveCategorySerializer(serializers.Serializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    parent = serializers.SerializerMethodField()  
+    parent = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        allow_null=True,
+        required=False
+    )
     children = RecursiveCategorySerializer(many=True, read_only=True)
 
     class Meta:
@@ -46,13 +50,52 @@ class ProductSerializer(serializers.ModelSerializer):
     avg_rating = serializers.SerializerMethodField(read_only=True)
     reviews_count = serializers.IntegerField(read_only=True)
     category = CategorySerializer(read_only=True)
+    brand_id = serializers.IntegerField( read_only=True)
+    category_id = serializers.IntegerField( read_only=True)
+    # thêm:
+    images = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
+
     class Meta:
         model = Product
         fields = [
-           'productid', 'sku', 'product_name', 'brand_name',
-            'price', 'sale_price', 'currency', 'size', 'description',
-            'avg_rating', 'reviews_count', 'category', 'highlight',
+            "productid",
+            "sku",
+            "product_name",
+
+            "brand_name",     
+            "brand_id",
+
+            "category",
+            "category_id",
+
+            "price",
+            "sale_price",
+            "value_price",
+            "currency",
+            "size",
+
+            "highlight",
+            "description",
+            "ingredients",
+            "skin_types",
+
+            "is_exclusive",
+            "online_only",
+            "out_of_stock",
+            "is_limited_edition",
+            "is_new",
+
+            "stock",
+
+            "avg_rating",
+            "reviews_count",
+
+            "images",
+            "thumbnail",
         ]
+
+    # --- highlight ---
     def get_highlight(self, obj):
         if not obj.highlight:
             return []
@@ -60,9 +103,32 @@ class ProductSerializer(serializers.ModelSerializer):
             return literal_eval(obj.highlight)
         except Exception:
             return []
+
+    # --- avg rating ---
     def get_avg_rating(self, obj):
-        # Nếu annotate thì lấy từ calculated_avg_rating
         if hasattr(obj, "calculated_avg_rating") and obj.calculated_avg_rating is not None:
             return round(float(obj.calculated_avg_rating), 2)
-        # Nếu không annotate thì trả về giá trị gốc trong DB
+
         return float(obj.avg_rating) if obj.avg_rating is not None else 0.0
+
+    # --- List ảnh ---
+    def get_images(self, obj):
+        return [img.image_url for img in obj.images.all()]
+
+    # --- Thumbnail (ảnh đầu tiên hoặc default) ---
+    def get_thumbnail(self, obj):
+        first = obj.images.first()
+        default_url = "/media/products/default.jpg"
+
+        # Nếu có ảnh → trả ảnh đầu tiên
+        if first:
+            return first.image_url
+
+        # Nếu không có request (nằm trong API list) → trả URL tương đối
+        request = self.context.get("request")
+        if not request:
+            return default_url
+
+        # Nếu có request → trả absolute URL
+        return request.build_absolute_uri(default_url)
+

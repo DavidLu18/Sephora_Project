@@ -26,10 +26,10 @@ class FirebaseAuthenticationMiddleware(MiddlewareMixin):
         id_token = token_header.split("Bearer ")[1]
         try:
             decoded_token = auth.verify_id_token(id_token)
-            request.user = FirebaseUser(decoded_token)  # ✅ dùng lớp mới
-            print(f"✅ Verified UID: {decoded_token.get('uid')}, Email: {decoded_token.get('email')}")
+            request.user = FirebaseUser(decoded_token)  #  dùng lớp mới
+            print(f" Verified UID: {decoded_token.get('uid')}, Email: {decoded_token.get('email')}")
         except Exception as e:
-            print("❌ Firebase token error:", e)
+            print(" Firebase token error:", e)
             return JsonResponse({"error": "Token Firebase không hợp lệ hoặc hết hạn"}, status=401)
 
         return None

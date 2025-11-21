@@ -1,59 +1,166 @@
 from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from django.db.models import Avg, Count, Q, F
+from django.db.models import Q, F
 from .models import Product, Brand, Category
 from .serializers import ProductSerializer, BrandSerializer, CategorySerializer
 from rest_framework.pagination import PageNumberPagination
+from rest_framework import status
 
-# --- PRODUCT ---
+# ---------------------
+# PAGINATION CLASS
+# ---------------------
+class ProductPagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = 'size'
+    max_page_size = 100
+
+
+# ---------------------
+# PRODUCT VIEWSET (ADMIN + LIST)
+# ---------------------
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductSerializer
-
+    pagination_class = ProductPagination
     def get_queryset(self):
-         queryset = (
+        request = self.request
+        qs = (
             Product.objects
-            .annotate(
-                reviews_count=Count('reviews', distinct=True),
-                calculated_avg_rating=Avg('reviews__rating')
-            )
-            .select_related('brand', 'category')
-            .order_by('productid')
+            .select_related("brand", "category")
+            .prefetch_related("images")
+            .order_by("productid")
         )
-         return queryset
+        # --------------------
+        # 1. SEARCH: name, sku, code
+        # --------------------
+        search = request.GET.get("search", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(product_name__icontains=search) |
+                Q(sku__icontains=search) |
+                Q(productid__icontains=search)
+            )
 
-# --- BRAND ---
-class BrandViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Brand.objects.all()
+        # --------------------
+        # 2. BRAND FILTER
+        # FE gửi brand_id hoặc brand_name
+        # --------------------
+        brand = request.GET.get("brand", "").strip()
+        if brand:
+            if brand.isdigit():
+                qs = qs.filter(brand_id=int(brand))
+            else:
+                qs = qs.filter(brand__brand_name__iexact=brand)
+
+        # --------------------
+        # 3. CATEGORY FILTER (cha → con → cháu)
+        # --------------------
+        category = request.GET.get("category", "").strip()
+        if category:
+
+            # FE gửi category_id thì parse int
+            if category.isdigit():
+                category_id = int(category)
+            else:
+                # FE gửi tên (ít dùng)
+                try:
+                    category_id = Category.objects.get(category_name__iexact=category).category_id
+                except Category.DoesNotExist:
+                    return qs.none()
+
+            # Hàm tìm con cháu
+            def get_all_subcategories(ids):
+                result = set(ids)
+                queue = list(ids)
+
+                while queue:
+                    sub = Category.objects.filter(parent_id__in=queue)
+                    sub_ids = [c.category_id for c in sub]
+
+                    if not sub_ids:
+                        break
+
+                    result.update(sub_ids)
+                    queue = sub_ids
+
+                return result
+
+            all_cat_ids = get_all_subcategories([category_id])
+            qs = qs.filter(category_id__in=all_cat_ids)
+
+        # --------------------
+        # 4. STATUS FILTER (NHIỀU CHỌN)
+        # query: ?status=exclusive&status=online
+        # hoặc: ?status=exclusive,online
+        # --------------------
+        status_raw = request.GET.getlist("status")
+        statuses = []
+
+        # nếu FE gửi dạng "exclusive,online,limited"
+        for s in status_raw:
+            if "," in s:
+                statuses.extend([x.strip() for x in s.split(",") if x.strip()])
+            else:
+                statuses.append(s.strip())
+
+        statuses = set(statuses)  # remove duplicate
+
+        for st in statuses:
+            if st.lower() == "exclusive":
+                qs = qs.filter(exclusive=True)
+            elif st.lower() == "online":
+                qs = qs.filter(online_only=True)
+            elif st.lower() == "outofstock":
+                qs = qs.filter(stock__lte=0)
+            elif st.lower() == "limited":
+                qs = qs.filter(limited=True)
+            elif st.lower() == "new": 
+                qs = qs.filter(is_new=True)
+        return qs
+# ---------------------
+# BRAND
+# ---------------------
+class BrandViewSet(viewsets.ModelViewSet):
+    queryset = Brand.objects.all().order_by("brand_id")
     serializer_class = BrandSerializer
+    
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response({"message": "Brand deleted"}, status=status.HTTP_200_OK)    
 
 
-# --- CATEGORY ---
-class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
+
+# ---------------------
+# CATEGORY
+# ---------------------
+class CategoryTreeViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.filter(parent__isnull=True)
     serializer_class = CategorySerializer
 
-
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response({"message": "Category deleted"}, status=status.HTTP_200_OK)
+# ---------------------
+# CHOSEN FOR YOU
+# ---------------------
 @api_view(['GET'])
 def chosen_for_you(request):
-    products = (
-        Product.objects
-        .annotate(
-            reviews_count=Count('reviews', distinct=True),
-            calculated_avg_rating=Avg('reviews__rating')  # ✅ đổi tên ở đây
-        )
-        .select_related('brand', 'category')
-    )
+    products = Product.objects.select_related('brand', 'category')
 
-    # --- Lọc theo các tiêu chí ---
+    # Filter brand
     brand_ids = request.GET.getlist("brand")
     if brand_ids:
         products = products.filter(brand_id__in=brand_ids)
 
+    # Filter category
     category = request.GET.get("category")
     if category:
         products = products.filter(category_id=category)
 
+    # Price range
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
     if min_price:
@@ -61,60 +168,63 @@ def chosen_for_you(request):
     if max_price:
         products = products.filter(price__lte=max_price)
 
+    # Rating
     rating = request.GET.get("rating")
     if rating:
-        products = products.filter(calculated_avg_rating__gte=float(rating))
+        products = products.filter(avg_rating__gte=float(rating))
 
+    # Sort
     sort_by = request.GET.get("sort_by")
     if sort_by == "sale":
         products = products.filter(sale_price__lt=F('price'))
 
-    products = products.order_by('-reviews_count', '-calculated_avg_rating')[:50]
+    # Sort by popularity + highest rating
+    products = products.order_by('-review_count', '-avg_rating')[:50]
 
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
 
+# ---------------------
+# NEW ARRIVALS
+# ---------------------
 @api_view(['GET'])
 def new_arrivals(request):
-    products = Product.objects.all().order_by('-productid')[:50]
+    products = Product.objects.select_related(
+        "brand", "category"
+    ).order_by('-productid')[:50]
+
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
+
+# ---------------------
+# PRODUCTS BY CATEGORIES
+# ---------------------
 @api_view(['GET'])
 def products_by_categories(request):
     category_ids = request.GET.getlist("category_ids")
-    products = (
-        Product.objects
-        .annotate(
-            reviews_count=Count('reviews', distinct=True),
-            calculated_avg_rating=Avg('reviews__rating')
-        )
-        .select_related('brand', 'category')
-    )
 
-    # Hàm để lấy tất cả danh mục con (bao gồm danh mục con lồng nhau)
+    products = Product.objects.select_related("brand", "category")
+
+    # Hàm tìm danh mục con (recursive)
     def get_all_subcategories(category_ids):
-        subcategories = set(category_ids)  # Tập hợp các danh mục
+        subcategories = set(category_ids)
         categories = Category.objects.filter(category_id__in=category_ids)
-        
-        # Tìm tất cả danh mục con (lặp để lấy cả danh mục con lồng nhau)
+
         while categories.exists():
-            subcats = Category.objects.filter(parent_id__in=[cat.category_id for cat in categories])
-            subcategories.update([cat.category_id for cat in subcats])
-            categories = subcats  # Tiếp tục tìm danh mục con của danh mục con
-        
+            subcats = Category.objects.filter(parent_id__in=[c.category_id for c in categories])
+            subcategories.update([c.category_id for c in subcats])
+            categories = subcats
+
         return subcategories
 
-    # Kiểm tra nếu có category_ids được truyền qua
+    # Filter by multiple categories (including children)
     if category_ids:
-        # Lấy tất cả danh mục con của các category_ids (bao gồm cả danh mục cha)
         all_category_ids = get_all_subcategories(category_ids)
-        
-        # Lọc sản phẩm thuộc danh mục cha hoặc danh mục con
         products = products.filter(category_id__in=all_category_ids)
 
-    # Lọc theo giá
+    # Price filter
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
     if min_price:
@@ -122,12 +232,12 @@ def products_by_categories(request):
     if max_price:
         products = products.filter(price__lte=max_price)
 
-    # Lọc theo đánh giá
+    # Rating
     rating = request.GET.get("rating")
     if rating:
-        products = products.filter(calculated_avg_rating__gte=float(rating))
+        products = products.filter(avg_rating__gte=float(rating))
 
-    # Sắp xếp sản phẩm
+    # Sorting
     sort_by = request.GET.get("sort_by")
     if sort_by == "sale":
         products = products.filter(sale_price__lt=F('price'))
@@ -136,16 +246,19 @@ def products_by_categories(request):
     elif sort_by == "price_desc":
         products = products.order_by('-price')
     else:
-        products = products.order_by('-reviews_count', '-calculated_avg_rating')  # Mặc định
+        products = products.order_by('-review_count', '-avg_rating')
 
-    # Phân trang kết quả
+    # Pagination
     paginator = ProductPagination()
     paginated_products = paginator.paginate_queryset(products, request)
 
-    # Trả về kết quả phân trang
     serializer = ProductSerializer(paginated_products, many=True)
     return paginator.get_paginated_response(serializer.data)
 
+
+# ---------------------
+# SEARCH PRODUCTS
+# ---------------------
 @api_view(['GET'])
 def search_products(request):
     q = request.query_params.get("q", "").strip()
@@ -155,58 +268,45 @@ def search_products(request):
     sort_by = request.query_params.get("sort_by", "")
     brand_ids = request.query_params.get("brand_ids", "")
 
-    products = (
-        Product.objects
-        .annotate(
-            reviews_count=Count('reviews', distinct=True),
-            calculated_avg_rating=Avg('reviews__rating')
-        )
-        .select_related('brand', 'category')
-    )
+    products = Product.objects.select_related("brand", "category")
 
-    # Tìm theo tên hoặc mô tả
+    # Search by name or description
     if q:
         products = products.filter(
-            Q(product_name__icontains=q) | Q(description__icontains=q)
+            Q(product_name__icontains=q) |
+            Q(description__icontains=q)
         )
 
-    # Lọc theo giá
+    # Price filters
     if min_price:
         products = products.filter(price__gte=min_price)
     if max_price:
         products = products.filter(price__lte=max_price)
 
-    # Lọc theo rating
+    # Rating filter
     if rating:
-        products = products.filter(calculated_avg_rating__gte=float(rating))
+        products = products.filter(avg_rating__gte=float(rating))
 
-    # Lọc theo brand
+    # Brand filter
     if brand_ids:
-        ids = [int(bid) for bid in brand_ids.split(",") if bid.isdigit()]
+        ids = [int(b) for b in brand_ids.split(",") if b.isdigit()]
         if ids:
             products = products.filter(brand_id__in=ids)
 
-    # Sắp xếp
+    # Sorting
     if sort_by == "price_asc":
         products = products.order_by("price")
     elif sort_by == "price_desc":
         products = products.order_by("-price")
     elif sort_by == "rating_desc":
-        products = products.order_by("-calculated_avg_rating")
+        products = products.order_by("-avg_rating")
     else:
         products = products.order_by("-productid")
 
-    # Phân trang DRF
+    # Pagination
     paginator = ProductPagination()
     paginated_products = paginator.paginate_queryset(products, request)
 
     serializer = ProductSerializer(paginated_products, many=True)
     return paginator.get_paginated_response(serializer.data)
 
-   
-
-#Phân trang
-class ProductPagination(PageNumberPagination):
-    page_size = 12 
-    page_size_query_param = 'size'  
-    max_page_size = 100  
