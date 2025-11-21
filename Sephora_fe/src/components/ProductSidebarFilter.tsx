@@ -39,7 +39,7 @@ export default function ProductSidebarFilter({
 
   const selectedCategoryId = params.category_id ? String(params.category_id) : null;
 
-  // 🔹 Kiểm tra nếu đang ở trang đặc biệt hoặc search
+  //  Kiểm tra nếu đang ở trang đặc biệt hoặc search
   const isSpecialPage =
     pathname.includes("chosen-for-you") ||
     pathname.includes("new-arrivals") ||
@@ -50,7 +50,7 @@ export default function ProductSidebarFilter({
   const [currentDisplayName, setCurrentDisplayName] = useState<string>("Tất cả sản phẩm");
   const [subCategories, setSubCategories] = useState<Category[]>([]);
 
-  // 🔹 Lấy danh sách thương hiệu
+  //  Lấy danh sách thương hiệu
   useEffect(() => {
     const fetchBrands = async () => {
       try {
@@ -61,13 +61,13 @@ export default function ProductSidebarFilter({
         }));
         setBrands(formatted);
       } catch (err) {
-        console.error("❌ Lỗi khi tải thương hiệu:", err);
+        console.error(" Lỗi khi tải thương hiệu:", err);
       }
     };
     fetchBrands();
   }, []);
 
-  // 🔹 Hàm tìm category theo ID
+  //  Hàm tìm category theo ID
   const findCategory = useCallback(
     (
       categories: Category[],
@@ -89,7 +89,7 @@ export default function ProductSidebarFilter({
     []
   );
 
-  // 🔹 Lấy danh mục và hiển thị
+  //  Lấy danh mục và hiển thị
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -115,7 +115,7 @@ export default function ProductSidebarFilter({
           setSubCategories(allSubCategories);
         }
       } catch (err) {
-        console.error("❌ Lỗi khi tải danh mục:", err);
+        console.error(" Lỗi khi tải danh mục:", err);
         setCurrentDisplayName("Tất cả sản phẩm");
         setSubCategories([]);
       }
@@ -127,7 +127,7 @@ export default function ProductSidebarFilter({
     setOpenSection((prev) => (prev === key ? null : key));
   };
 
-  // 🔹 Khi chọn danh mục, cập nhật URL và filters
+  //  Khi chọn danh mục, cập nhật URL và filters
   const handleCategorySelect = (id: number) => {
     const currentPath = `/shop/${id}`;
     router.push(currentPath);
