@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'qa',
     'reviews',
     'rest_framework',
+    'promotions',
+    'notifications',
     
 ]
 
@@ -89,6 +91,16 @@ TEMPLATES = [
         },
     },
 ]
+CELERY_BEAT_SCHEDULE = {
+    "flash-sale-start": {
+        "task": "notifications.tasks.notify_flash_sale_started",
+        "schedule": 60,  # kiểm tra mỗi 60 giây
+    },
+    "flash-sale-upcoming": {
+        "task": "notifications.tasks.notify_flash_sale_upcoming",
+        "schedule": 60,  # kiểm tra mỗi phút
+    },
+}
 
 WSGI_APPLICATION = 'sephora.wsgi.application'
 
