@@ -1,64 +1,60 @@
-// src/app/products/page.tsx
-"use client";
-import ProductCard from "@/components/ProductCard";
+"use client"
+
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
 import { Product } from "@/types/product"
+import { getProductsByCategory } from "@/api"
+import ProductCard from "@/components/ProductCard"
 
-const allProducts: Product[] = [
-  {
-    id: 1,
-    name: "Shark Glossi™ 2-in-1 Hot Tool",
-    price: 179,
-    image: "/products/prod1.jpg",
-    reviews: 123,
-  },
-  {
-    id: 2,
-    name: "Summer Fridays Lip Butter Balm Minis",
-    price: 25,
-    image: "/products/prod2.jpg",
-    reviews: 87,
-  },
-  {
-    id: 3,
-    name: "Sol de Janeiro Perfume Mist",
-    price: 39,
-    image: "/products/prod3.jpg",
-    reviews: 215,
-  },
-  {
-    id: 4,
-    name: "Sephora Favorites Holiday Set",
-    price: 69,
-    image: "/products/prod4.jpg",
-    reviews: 45,
-  },
-  {
-    id: 5,
-    name: "Tower 28 Beauty LipSoftie",
-    price: 20,
-    image: "/products/prod5.jpg",
-    reviews: 64,
-  },
-  {
-    id: 6,
-    name: "Saie Mini Dew Blush",
-    price: 30,
-    image: "/products/prod6.jpg",
-    reviews: 92,
-  },
-]
+export default function CategoryPage() {
+  const params = useParams()
+  const category_id = Number(params.category_id)  // ✅ Lấy param từ URL
 
-export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    if (!category_id) return
+    const fetchProducts = async () => {
+      try {
+        setLoading(true)
+        const data = await getProductsByCategory({
+          category_ids: [category_id],
+          page,
+        })
+        setProducts(data.results) // DRF pagination format
+      } catch (err) {
+        console.error("Lỗi khi tải sản phẩm:", err)
+        setError("Không thể tải sản phẩm")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [category_id, page])
+
+  if (loading) return <p>Đang tải sản phẩm...</p>
+  if (error) return <p>{error}</p>
+  console.log("🔄 Category ID hiện tại:", category_id)
   return (
-    <main className="px-6 py-6">
-      <h1 className="text-2xl font-bold mb-6">All Products</h1>
-
-      {/* Grid hiển thị nhiều sản phẩm */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-        {allProducts.map((p) => (
-          <ProductCard key={p.id} product={p} />
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Danh mục {category_id}</h1>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {products.map((p) => (
+          <ProductCard key={p.productid} product={p} />
+          
         ))}
       </div>
-    </main>
-  );
+      <div className="flex justify-center mt-6 gap-3">
+        <button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1}>
+          Trang trước
+        </button>
+        <span>Trang {page}</span>
+        <button onClick={() => setPage((p) => p + 1)}>Trang sau</button>
+      </div>
+    </div>
+  )
 }

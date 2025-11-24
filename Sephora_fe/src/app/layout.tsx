@@ -29,18 +29,28 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-visible`}
       >
-        {/* Header + Navbar luôn hiển thị */}
-        <HeaderWrapper />
-        <Navbar />
+        {/* Header luôn ở trên cùng */}
+        <div className="relative z-[2000]">
+          <HeaderWrapper />
+        </div>
+
+        {/* Navbar nằm dưới header */}
+        <div className="relative z-[1500]">
+          <Navbar />
+        </div>
 
         {/* Nội dung trang */}
-        <main>{children}</main>
+        <main className="relative z-[100]">{children}</main>
 
-        {/* Footer luôn hiển thị */}
-        <Footer />
+        {/* Footer */}
+        <footer className="relative z-[50]">
+          <Footer />
+        </footer>
       </body>
     </html>
   );
 }
+
+

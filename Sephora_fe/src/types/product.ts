@@ -1,36 +1,30 @@
+import { Category } from "./category"
+
 export interface Product {
-  id: number
-  name: string
-  subtitle?: string
+  productid: number
+  sku?: string
+  product_name: string
   price: number
-  originalPrice?: number
-  image: string
-  gallery?: string[]
-  reviews: number
-  likes?: number
-  sizes?: {
-    label: string
-    selected?: boolean
-  }[]
+  sale_price?: number
+  currency?: string
+  size?: string
   description?: string
-  hairType?: string
-  hairTexture?: string
-  ingredients?: string
-  howToUse?: string
-  averageRating?: number
-  recommendedPercent?: number
-  pros?: string[]
-  cons?: string[]
-  reviewImages?: string[]
-  userReviews?: ProductReview[]
+  brand_name?: string
+  category_name?: string
+  avg_rating?: number
+  reviews_count?: number
+  highlight?: string[] 
+  category?: Category
+  image_url?: string
 }
 export interface ProductReview {
-  id: number
-  author: string
+  reviewid: number
+  productid: number
+  userid: number
   rating: number
-  date: string
-  comment: string
-  helpful?: number
-  notHelpful?: number
-  image?: string
+  review_title?: string
+  review_text?: string
+  helpfulness?: number
+  total_feedback_count?: number
+  submission_time: string
 }

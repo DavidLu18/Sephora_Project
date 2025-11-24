@@ -14,10 +14,10 @@ export default function HeroBanner() {
           className="w-full h-[300px] object-cover"
         />
         <div className="p-4 bg-purple-200">
-          <h3 className="font-bold text-lg">High-Shine Hair Oils</h3>
-          <p className="text-sm">Get that great hair energy.</p>
+          <h3 className="font-bold text-lg">Dầu dưỡng tóc bóng mượt</h3>
+          <p className="text-sm">Cho mái tóc tràn đầy năng lượng</p>
           <button className="mt-2 underline text-sm font-semibold">
-            SHOP NOW
+            MUA NGAY
           </button>
         </div>
       </div>
@@ -33,12 +33,12 @@ export default function HeroBanner() {
           className="w-full h-[300px] object-cover"
         />
         <div className="p-4 bg-pink-100">
-          <h3 className="font-bold text-lg">Save BIG on Hair Care</h3>
+          <h3 className="font-bold text-lg">Tiết kiệm KHỦNG khi chăm sóc tóc</h3>
           <p className="text-sm">
-            New deals drop daily until 10/10. In store and online.
+            Ưu đãi mới sẽ được áp dụng hàng ngày cho đến ngày 10/31.
           </p>
           <button className="mt-2 underline text-sm font-semibold">
-            SHOP NOW
+            MUA NGAY
           </button>
         </div>
       </div>
@@ -56,10 +56,10 @@ export default function HeroBanner() {
         <div className="p-4 bg-purple-200">
           <h3 className="font-bold text-lg">Hello, Holiday Vaults!</h3>
           <p className="text-sm">
-            Bursting with the best beauty (for less $$). Meet this year&apos;s shop.
+            Tràn ngập những món đồ đẹp nhất. Cùng khám phá cửa hàng.
           </p>
           <button className="mt-2 underline text-sm font-semibold">
-            SHOP NOW
+            MUA NGAY
           </button>
         </div>
       </div>
