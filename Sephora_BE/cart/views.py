@@ -130,7 +130,7 @@ class CartViewSet(viewsets.ViewSet):
         if not items.exists():
             return Response({"message": "Giỏ hàng trống"}, status=400)
 
-        #  Tính tổng tiền
+        # Tính tổng tiền
         total = 0
         for i in items:
             try:
@@ -139,15 +139,17 @@ class CartViewSet(viewsets.ViewSet):
             except Product.DoesNotExist:
                 continue
 
-        #  Tạo đơn hàng
+        payment_method = request.data.get("payment_method", "cod")
+
+        # Tạo đơn hàng (chưa xóa giỏ ngay)
         order = Orders.objects.create(
             userid=user_id,
             total=total,
             status="pending",
-            payment_method=request.data.get("payment_method", "Thanh toán khi nhận hàng"),
+            payment_method=payment_method,
             shipping_method="Tiêu chuẩn",
         )
-
+        print("ORDER ID:", order.orderid)
         for i in items:
             try:
                 product = Product.objects.get(productid=i.productid)
@@ -160,13 +162,29 @@ class CartViewSet(viewsets.ViewSet):
             except Product.DoesNotExist:
                 continue
 
-        #  Xóa giỏ hàng sau khi thanh toán
+        #  VNPay THÊM TẠI ĐÂY 
+        if payment_method.lower() in ["vnpay", "credit_card", "vnpay_wallet"]:
+            from payments.vnpay_service import generate_vnpay_payment_url
+            
+            payment_url = generate_vnpay_payment_url(order.orderid, total)
+            print("=== PAYMENT URL ===")
+            print(payment_url)
+            print("==================")
+            return Response({
+                "payment_url": payment_url,
+                "order_id": order.orderid
+            })
+
+        #  Nếu COD thì xử lý như cũ: xóa giỏ hàng
         items.delete()
 
         return Response(
-            {"message": "Thanh toán thành công", "order_id": order.orderid},
+            {"message": "Thanh toán COD thành công", "order_id": order.orderid},
             status=200,
         )
+
+    
+
     @action(detail=False, methods=["post"])
     def update_quantity(self, request):
         """
@@ -202,3 +220,5 @@ class CartViewSet(viewsets.ViewSet):
             },
             status=200,
         )
+    
+

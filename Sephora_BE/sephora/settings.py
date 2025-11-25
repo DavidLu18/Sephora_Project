@@ -49,7 +49,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'promotions',
     'notifications',
-    
+    'addresses',
+    'locations',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -73,6 +75,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3001",
     "http://127.0.0.1:3001",
 ]
+
+# VNPay Config (Sandbox)
+VNPAY_TMN_CODE = "VSR30IG2"
+VNPAY_HASH_SECRET = "0M8KFBD7KA3XQNYYCWAOEH80TKMRBB8K"
+VNPAY_PAYMENT_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+
+VNPAY_RETURN_URL = "https://dfcdf45d6a7e.ngrok-free.app/api/payment/vnpay_return/"
 
 ROOT_URLCONF = 'sephora.urls'
 MEDIA_URL = "/media/"
