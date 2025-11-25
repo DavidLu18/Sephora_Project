@@ -18,7 +18,7 @@ class FirebaseUser:
 class FirebaseAuthenticationMiddleware(MiddlewareMixin):
     def process_request(self, request):
         token_header = request.headers.get("Authorization")
-        print("🔹 Authorization Header:", token_header)
+        print("Authorization Header:", token_header)
         if not token_header or not token_header.startswith("Bearer "):
             request.user = None
             return None

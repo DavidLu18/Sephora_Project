@@ -6,30 +6,32 @@ import {  CartItem } from "@/types/cart";
 import { Order } from "@/types/order";
 import { Brand } from "@/types/brand";
 import { ProductQuestion, ProductAnswer } from "@/types/qa";
-
+import { Address } from "@/types/address";
+import { PaymentMethod } from "@/types/payment";  
 
 export const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 // Hàm fetchAPI để gửi token vào header
 export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
-  // Nếu là API không yêu cầu xác thực, bỏ qua phần token
+  const token = localStorage.getItem("token");
+
   const headers: HeadersInit = {
     "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 
-  // Tiến hành gọi API
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: "include",
   });
 
-  // Kiểm tra trạng thái trả về của API
   if (!response.ok) {
     throw new Error(`Lỗi khi gọi API: ${response.statusText}`);
   }
 
-  return response.json();  // Trả về dữ liệu JSON
+  return response.json();
 }
 
 
@@ -105,7 +107,7 @@ export async function getProductsByCategory(params: {
     );
   }
 
-  // ✅ Gọi API và ép kiểu dữ liệu trả về
+  //  Gọi API và ép kiểu dữ liệu trả về
   const data = await fetchAPI(
     `/products/products-by-categories/?${query.toString()}`
   );
@@ -196,7 +198,7 @@ export const checkoutCart = async (paymentMethod: string, token?: string) => {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ paymentMethod }),
+    body: JSON.stringify({ payment_method: paymentMethod }),
   });
 
   if (!response.ok) {
@@ -263,15 +265,15 @@ export const updateOrderStatus = async (orderId: number, status: string, token: 
   return res.ok;
 };
 // ==============================
-// 🧩 PRODUCT Q&A (Questions & Answers)
+//  PRODUCT Q&A (Questions & Answers)
 // ==============================
 
-// 📌 Lấy danh sách câu hỏi theo sản phẩm
+//  Lấy danh sách câu hỏi theo sản phẩm
 export async function getQuestionsByProduct(productId: number): Promise<ProductQuestion[]> {
   return fetchAPI(`/products/${productId}/questions/`);
 }
 
-// 📌 Tạo câu hỏi mới
+//  Tạo câu hỏi mới
 export async function createQuestion(
   productId: number,
   content: string
@@ -311,7 +313,7 @@ export async function createAnswer(questionId: number, content: string, token?: 
   return res.json();
 }
 
-// 📌 Đánh dấu "Hữu ích"
+//  Đánh dấu "Hữu ích"
 export async function markQuestionHelpful(questionId: number, token?: string): Promise<{ helpful_count: number }> {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -329,6 +331,108 @@ export async function markQuestionHelpful(questionId: number, token?: string): P
   }
 
   return res.json();
+}
+
+// Lấy danh sách địa chỉ của user
+export async function getAddresses(): Promise<Address[]> {
+  return fetchAPI("/address/", {
+    method: "GET",
+    credentials: "include",
+  });
+}
+
+// Tạo địa chỉ mới
+export async function createAddress(data: {
+  country: string;
+  city: string;
+  district?: string;
+  street?: string;
+  zipcode?: string;
+  isdefault?: boolean;
+}): Promise<Address> {
+  return fetchAPI("/address/", {
+    method: "POST",
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+}
+
+// Xóa địa chỉ
+export async function deleteAddress(addressId: number): Promise<void> {
+  await fetchAPI(`/address/${addressId}/`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+}
+
+// Đặt địa chỉ mặc định
+export async function setDefaultAddress(addressId: number): Promise<void> {
+  await fetchAPI(`/address/${addressId}/set-default/`, {
+    method: "PATCH",
+    credentials: "include",
+  });
+}
+
+export const getCities = async () => {
+  const res = await fetch(`${API_BASE_URL}/locations/cities/`, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    throw new Error("Không thể lấy danh sách thành phố");
+  }
+
+  return res.json();
+};
+
+
+export const getWards = async (cityCode: string) => {
+  const res = await fetch(`${API_BASE_URL}/locations/wards/${cityCode}/`, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    throw new Error("Không thể lấy danh sách phường/xã");
+  }
+
+  return res.json();
+};
+
+
+export async function getPaymentMethods(): Promise<PaymentMethod[]> {
+  return fetchAPI("/payment/methods/", {
+    method: "GET",
+    credentials: "include",
+  });
+}
+
+// Thêm phương thức thanh toán mới
+export async function addPaymentMethod(data: {
+  method_type: "credit_card" | "vnpay_wallet";
+  card_brand?: string;
+  card_last4?: string;
+}): Promise<PaymentMethod> {
+  return fetchAPI("/payment/methods/add/", {
+    method: "POST",
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+}
+
+// Xóa phương thức thanh toán
+export async function deletePaymentMethod(methodId: number): Promise<void> {
+  await fetchAPI(`/payment/methods/${methodId}/delete/`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+}
+
+// Đặt phương thức thanh toán mặc định
+export async function setDefaultPaymentMethod(methodId: number): Promise<void> {
+  await fetchAPI(`/payment/methods/${methodId}/set-default/`, {
+    method: "PUT",
+    credentials: "include",
+  });
 }
 
 export default fetchAPI;

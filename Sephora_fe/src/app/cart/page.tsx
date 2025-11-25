@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { getCart, removeFromCart, checkoutCart, updateCartQuantity } from '@/api';
+import { getCart, removeFromCart, checkoutCart, updateCartQuantity, getAddresses, getPaymentMethods } from '@/api';
 import { Cart, CartItem } from '@/types/cart';
+import { Address } from "@/types/address";
+import { PaymentMethod } from "@/types/payment";
 import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,6 +15,12 @@ export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [userReady, setUserReady] = useState(false);
+  
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
+
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPayment, setSelectedPayment] = useState<string>("COD");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -24,6 +32,26 @@ export default function CartPage() {
 
           const res = await getCart(token); 
           setCart(res);
+          try {
+            const addrList = await getAddresses();
+            setAddresses(addrList);
+
+            const def = addrList.find(a => a.isdefault);
+            if (def) setSelectedAddress(def.addressid);
+          } catch (e) {
+            console.error("Lỗi khi tải địa chỉ:", e);
+          }
+
+          // NEW: Load phương thức thanh toán
+          try {
+            const methodList = await getPaymentMethods();
+            setPaymentMethods(methodList);
+
+            const defPay = methodList.find(m => m.is_default);
+            if (defPay) setSelectedPayment(defPay.method_type);
+          } catch (e) {
+            console.error("Lỗi khi tải payment:", e);
+          }
         } catch (err) {
           console.error('Lỗi khi tải giỏ hàng:', err);
         }
@@ -49,14 +77,29 @@ export default function CartPage() {
 
   const handleCheckout = async () => {
     const token = localStorage.getItem('token');
-    if (token) {
-      const res = await checkoutCart("COD", token); // Thanh toán giỏ hàng với token
-      alert(res.message || "Thanh toán thành công!");
-      window.dispatchEvent(new Event("cartUpdated"));
-      const updated = await getCart(token); // Cập nhật lại giỏ hàng sau khi thanh toán
-      setCart(updated);
+    if (!token) return;
+
+    const res = await checkoutCart(selectedPayment, token);
+
+    //  Nếu backend trả link VNPay -> redirect
+    if (res.payment_url) {
+      window.location.href = res.payment_url;
+      return;
+    }
+
+    //  Nếu COD -> xử lý như cũ
+    alert(res.message || "Thanh toán thành công!");
+
+    window.dispatchEvent(new Event("cartUpdated"));
+    const updated = await getCart(token);
+    setCart(updated);
+
+    // Nếu COD -> chuyển sang trang đơn hàng
+    if (selectedPayment === "COD") {
+      window.location.href = "/account/orders";
     }
   };
+
 
   if (loading) return <div className="p-10 text-center">Đang tải giỏ hàng...</div>;
   if (!userReady) return <div className="p-10 text-center">Vui lòng đăng nhập để xem giỏ hàng.</div>;
@@ -138,7 +181,22 @@ export default function CartPage() {
             <h3 className="font-semibold text-lg mb-3">Tổng tiền</h3>
             <p className="text-xl font-bold mb-2"> {convertToVND(total)}</p>
             <p className="text-sm text-gray-500 mb-5">Phí vận chuyển & thuế tính ở bước thanh toán.</p>
-
+            {/* NEW: Phương thức thanh toán */}
+            <div className="mb-4">
+              <label className="font-medium text-sm block mb-2">Phương thức thanh toán</label>
+              <select
+                value={selectedPayment}
+                onChange={(e) => setSelectedPayment(e.target.value)}
+                className="border px-3 py-2 rounded w-full"
+              >
+                <option value="COD">COD (Thanh toán khi nhận hàng)</option>
+                {paymentMethods.map(pm => (
+                  <option key={pm.id} value={pm.method_type}>
+                    {pm.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={handleCheckout}
               className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold transition"
@@ -146,14 +204,30 @@ export default function CartPage() {
               Đặt hàng
             </button>
 
-            <button className="w-full bg-yellow-400 text-black py-3 rounded-lg mt-3 font-medium hover:bg-yellow-500">
-              PayPal
-            </button>
 
-            <button className="w-full bg-blue-500 text-white py-3 rounded-lg mt-3 font-medium hover:bg-blue-600">
-              VNPay
-            </button>
           </div>
+          {/* NEW: Địa chỉ giao hàng */}
+          <div className="border border-gray-200 rounded-xl shadow-sm p-5 mb-6">
+            <h3 className="font-semibold text-lg mb-3">Địa chỉ giao hàng</h3>
+
+            {addresses.length === 0 ? (
+              <p className="text-gray-500 text-sm">Bạn chưa có địa chỉ. Vui lòng thêm trong tài khoản.</p>
+            ) : (
+              <select
+                value={selectedAddress ?? ""}
+                onChange={(e) => setSelectedAddress(Number(e.target.value))}
+                className="border px-3 py-2 rounded w-full"
+              >
+                {addresses.map(addr => (
+                  <option key={addr.addressid} value={addr.addressid}>
+                    {addr.street}, {addr.district}, {addr.city}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          
+
         </div>
       </div>
     </div>
