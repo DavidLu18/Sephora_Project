@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { fetchJSON } from "@/api";
 
 import type { Brand, Category, Product } from "@/types";
 
@@ -76,9 +77,12 @@ export default function CreateCampaignPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/brands/")
-      .then((r) => r.json())
-      .then((data: Brand[]) => setBrands(data));
+    fetchJSON("/api/brands/")
+      .then((data: Brand[]) => setBrands(data))
+      .catch((error) => {
+        console.error("Failed to load brands", error);
+        setBrands([]);
+      });
   }, []);
 
   /* =======================================================
@@ -87,9 +91,12 @@ export default function CreateCampaignPage() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/categories/")
-      .then((r) => r.json())
-      .then((data: Category[]) => setCategories(data));
+    fetchJSON("/api/categories/")
+      .then((data: Category[]) => setCategories(data))
+      .catch((error) => {
+        console.error("Failed to load categories", error);
+        setCategories([]);
+      });
   }, []);
 
   /* =======================================================
@@ -139,24 +146,17 @@ export default function CreateCampaignPage() {
     if (form.apply_scope === "category") body.category_ids = selectedCategories;
     if (form.apply_scope === "brand") body.brand_ids = selectedBrands;
 
-    const res = await fetch(
-      "http://localhost:8000/api/promotions/admin/campaigns/",
-      {
+    try {
+      await fetchJSON("/api/promotions/admin/campaigns/", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      }
-    );
-
-    if (!res.ok) {
-      const err = await res.json();
-      alert("Lỗi: " + JSON.stringify(err));
-      return;
+      });
+      alert("Tạo chương trình thành công!");
+      router.push("/discounts");
+    } catch (error) {
+      console.error("Không thể tạo chương trình", error);
+      alert("Không thể tạo chương trình khuyến mãi. Vui lòng thử lại.");
     }
-
-    alert("Tạo chương trình thành công!");
-    router.push("/discounts");
   };
 
   /* =======================================================

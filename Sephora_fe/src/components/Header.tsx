@@ -6,17 +6,23 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import SignInModal from "./auth/SignInModal";
 import SignUpModal from "./auth/SignUpModal";
+import PersonalizedSearchModal from "./PersonalizedSearchModal";
+
+const ADMIN_PANEL_URL =
+  process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
 
 export default function Header() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [lastName, setLastName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isPersonalizedOpen, setIsPersonalizedOpen] = useState(false);
 
   const toggleMenu = (menu: string) => {
     setOpenMenu(openMenu === menu ? null : menu);
@@ -59,13 +65,15 @@ export default function Header() {
           if (res.ok) {
             const data = await res.json();
             setLastName(data.lastname || "");
+            setUserRole(data.role || null);
           }
         } catch (err) {
-          console.error("Error fetching last name from backend:", err);
+          console.error("Error fetching profile from backend:", err);
         }
       } else {
         setUserEmail(null);
         setLastName(null);
+        setUserRole(null);
       }
     });
 
@@ -146,6 +154,27 @@ export default function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleOpenPersonalized = (event: Event) => {
+      const customEvent = event as CustomEvent<{ query?: string }>;
+      if (customEvent.detail?.query) {
+        setSearchTerm(customEvent.detail.query);
+      }
+      setIsPersonalizedOpen(true);
+    };
+
+    window.addEventListener(
+      "openPersonalizedSearch",
+      handleOpenPersonalized as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        "openPersonalizedSearch",
+        handleOpenPersonalized as EventListener
+      );
+    };
+  }, []);
+
 
   return (
     <header className="border-b relative">
@@ -166,7 +195,7 @@ export default function Header() {
         {/* Search */}
         <form
           onSubmit={handleSearch}
-          className="flex items-center flex-1 justify-center mx-10"
+          className="flex flex-1 items-center justify-center gap-4 mx-10"
         >
           <div className="flex items-center border border-gray-400 rounded-full px-4 py-2 w-full max-w-2xl h-11">
             <Search className="w-5 h-5 text-gray-500 mr-3 cursor-pointer" onClick={handleSearch} />
@@ -179,10 +208,24 @@ export default function Header() {
               autoComplete="off"
             />
           </div>
+          <button
+            type="button"
+            className="hidden md:flex whitespace-nowrap items-center rounded-full border border-gray-900 px-4 py-2 text-xs font-semibold text-gray-900 hover:bg-gray-900 hover:text-white transition md:text-sm"
+            onClick={() => setIsPersonalizedOpen(true)}
+          >
+            Tìm kiếm sản phẩm cá nhân hóa cùng với SephoraAI
+          </button>
         </form>
 
         {/* Icons & User */}
         <div className="flex items-center gap-6 relative">
+          <button
+            type="button"
+            className="md:hidden rounded-full border border-gray-900 px-3 py-2 text-xs font-semibold text-gray-900"
+            onClick={() => setIsPersonalizedOpen(true)}
+          >
+            SephoraAI
+          </button>
           {/* User */}
           <div className="relative user-dropdown-area flex items-center gap-2 cursor-pointer">
             {!userEmail ? (
@@ -268,6 +311,34 @@ export default function Header() {
                     <p className="text-xs text-gray-500">Xem thông tin, trạng thái đơn hàng.</p>
                   </div>
                 </button>
+                {userRole === "admin" && (
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-blue-600"
+                    onClick={() => {
+                      setShowUserDropdown(false);
+                      window.open(ADMIN_PANEL_URL, "_blank", "noopener");
+                    }}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M3 7h18M3 12h18M3 17h18"
+                      />
+                    </svg>
+                    <div>
+                      <span>Bảng điều khiển Admin</span>
+                      <p className="text-xs text-gray-500">Mở trang Sephora Admin.</p>
+                    </div>
+                  </button>
+                )}
                 <button
                   className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
                   onClick={handleSignOut}
@@ -363,6 +434,14 @@ export default function Header() {
           setIsSignUpOpen(false);
           setIsSignInOpen(true);
         }}
+      />
+
+      <PersonalizedSearchModal
+        isOpen={isPersonalizedOpen}
+        onClose={() => setIsPersonalizedOpen(false)}
+        searchQuery={searchTerm}
+        userEmail={userEmail}
+        allowSaveProfile={!!userEmail}
       />
     </header>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchJSON } from "@/api";
 
 export default function CreateVoucherPage() {
   const router = useRouter();
@@ -57,29 +58,10 @@ export default function CreateVoucherPage() {
             is_active: form.is_active,
             };
 
-            const res = await fetch("http://localhost:8000/api/promotions/admin/vouchers/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(body),
+            await fetchJSON("/api/promotions/admin/vouchers/", {
+              method: "POST",
+              body: JSON.stringify(body),
             });
-
-            // Nếu lỗi → parse JSON để lấy lỗi chính xác
-            if (!res.ok) {
-            const errorData = await res.json();
-
-            // Lấy message lỗi chính xác
-            const msg =
-                errorData.code?.[0] ||
-                errorData.discount_type?.[0] ||
-                errorData.discount_value?.[0] ||
-                errorData.non_field_errors?.[0] ||
-                "Đã xảy ra lỗi không xác định";
-
-            alert("Lỗi: " + msg);
-            setLoading(false);
-            return;
-            }
 
             alert("Tạo voucher thành công!");
             router.push("/discounts");

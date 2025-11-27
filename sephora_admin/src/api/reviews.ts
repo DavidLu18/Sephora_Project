@@ -24,11 +24,11 @@ export interface ReviewPaginated {
 
 export const reviewsApi = {
   getAll(query: string): Promise<ReviewPaginated> {
-    return fetchJSON(`/admin/reviews/${query}`);
+    return fetchJSON(`/api/admin/reviews/${query}`);
   },
 
   delete(id: number): Promise<{ message: string }> {
-    return fetchJSON(`/admin/reviews/${id}/delete/`, {
+    return fetchJSON(`/api/admin/reviews/${id}/delete/`, {
       method: "DELETE",
     });
   },

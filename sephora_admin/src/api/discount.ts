@@ -5,18 +5,18 @@ import { fetchJSON } from "./index";
 // VOUCHERS
 // ======================
 export const getVouchers = (): Promise<Voucher[]> => {
-  return fetchJSON("/promotions/admin/vouchers/");
+  return fetchJSON("/api/promotions/admin/vouchers/");
 };
 
 export const createVoucher = (data: VoucherCreateInput): Promise<Voucher> => {
-  return fetchJSON("/promotions/admin/vouchers/", {
+  return fetchJSON("/api/promotions/admin/vouchers/", {
     method: "POST",
     body: JSON.stringify(data),
   });
 };
 
 export const deleteVoucher = (id: number): Promise<void> => {
-  return fetchJSON(`/promotions/admin/vouchers/${id}/`, {
+  return fetchJSON(`/api/promotions/admin/vouchers/${id}/`, {
     method: "DELETE",
   });
 };
@@ -25,7 +25,7 @@ export const updateVoucher = (
   id: number,
   data: Partial<VoucherCreateInput>
 ): Promise<Voucher> => {
-  return fetchJSON(`/promotions/admin/vouchers/${id}/`, {
+  return fetchJSON(`/api/promotions/admin/vouchers/${id}/`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
@@ -35,18 +35,18 @@ export const updateVoucher = (
 // CAMPAIGNS
 // ======================
 export const getCampaigns = (): Promise<Campaign[]> => {
-  return fetchJSON("/promotions/admin/campaigns/");
+  return fetchJSON("/api/promotions/admin/campaigns/");
 };
 
 export const createCampaign = (data: Partial<Campaign>): Promise<Campaign> => {
-  return fetchJSON("/promotions/admin/campaigns/", {
+  return fetchJSON("/api/promotions/admin/campaigns/", {
     method: "POST",
     body: JSON.stringify(data),
   });
 };
 
 export const deleteCampaign = (id: number): Promise<void> => {
-  return fetchJSON(`/promotions/admin/campaigns/${id}/`, {
+  return fetchJSON(`/api/promotions/admin/campaigns/${id}/`, {
     method: "DELETE",
   });
 };
@@ -62,7 +62,7 @@ export interface PromoNotificationPayload {
 export const sendPromoNotification = (
   data: PromoNotificationPayload
 ): Promise<void> => {
-  return fetchJSON("/notifications/admin/send-promo/", {
+  return fetchJSON("/api/notifications/admin/send-promo/", {
     method: "POST",
     body: JSON.stringify(data),
   });

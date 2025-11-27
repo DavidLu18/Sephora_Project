@@ -24,6 +24,7 @@ export default function SearchPage() {
 
   const [, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [ctaDismissed, setCtaDismissed] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +107,37 @@ export default function SearchPage() {
     fetchProducts();
   }, [fetchProducts]);
 
+  useEffect(() => {
+    setCtaDismissed(false);
+  }, [query]);
+
+  const openPersonalizedModal = useCallback(() => {
+    if (!query) return;
+    window.dispatchEvent(
+      new CustomEvent("openPersonalizedSearch", {
+        detail: { query },
+      })
+    );
+  }, [query]);
+
+  useEffect(() => {
+    if (!query || typeof window === "undefined") return;
+    try {
+      const key = `personalized-search:${query.toLowerCase()}`;
+      if (sessionStorage.getItem(key)) {
+        return;
+      }
+      sessionStorage.setItem(key, "shown");
+      window.dispatchEvent(
+        new CustomEvent("openPersonalizedSearch", {
+          detail: { query },
+        })
+      );
+    } catch {
+      // Ignore session storage errors (e.g., private mode)
+    }
+  }, [query]);
+
   // 🔹 Khi đổi filter
   const handleFilterChange = useCallback(
     (newFilters: Partial<typeof filters>) => {
@@ -149,9 +181,37 @@ export default function SearchPage() {
       />
       {/* Danh sách sản phẩm */}
       <section className="flex-1">
-        <h1 className="text-2xl font-semibold mb-6">
-          Kết quả cho: <span className="text-purple-600">{query}</span>
-        </h1>
+        <div className="flex flex-col gap-4 mb-6">
+          <h1 className="text-2xl font-semibold">
+            Kết quả cho: <span className="text-purple-600">{query}</span>
+          </h1>
+          {!ctaDismissed && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-rose-500">
+                  SephoraAI gợi ý riêng cho bạn
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  Cá nhân hóa ngay dựa trên tìm kiếm “{query}” và tình trạng da của bạn để nhận danh sách phù hợp hơn.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={openPersonalizedModal}
+                  className="rounded-full bg-black text-white px-5 py-2 text-sm font-semibold hover:bg-black/90"
+                >
+                  Nhận gợi ý cá nhân hóa
+                </button>
+                <button
+                  onClick={() => setCtaDismissed(true)}
+                  className="rounded-full border border-gray-300 px-5 py-2 text-sm text-gray-600 hover:bg-white"
+                >
+                  Để sau
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {filteredProducts.length > 0 ? (
           <>

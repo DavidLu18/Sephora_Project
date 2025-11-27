@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { Product } from "@/types";
+import { fetchJSON } from "@/api";
 
 interface ProductDropdownProps {
   selected: number[];
@@ -25,15 +26,23 @@ export default function ProductDropdown({ selected, onChange }: ProductDropdownP
     let isCancelled = false;
 
     const fetchProducts = async () => {
-      const r = await fetch(
-        `http://localhost:8000/api/products/?search=${search}&page=${page}&size=10`
-      );
-
-      const json = await r.json();
-
-      if (!isCancelled) {
-        setProducts(json.results ?? []);
-        setHasNext(json.next !== null);
+      try {
+        const params = new URLSearchParams({
+          search,
+          page: String(page),
+          size: "10",
+        });
+        const json = await fetchJSON(`/api/products/?${params.toString()}`);
+        if (!isCancelled) {
+          setProducts(json.results ?? []);
+          setHasNext(Boolean(json.next));
+        }
+      } catch (error) {
+        console.error("Failed to load products", error);
+        if (!isCancelled) {
+          setProducts([]);
+          setHasNext(false);
+        }
       }
     };
 

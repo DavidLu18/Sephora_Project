@@ -35,7 +35,7 @@ export default function CreateProductPage() {
       formData.append(key, String(value));
     });
 
-    const product = await fetchFormData("/admin/products/", {
+    const product = await fetchFormData("/api/admin/products/", {
       method: "POST",
       body: formData,
     });

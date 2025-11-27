@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
 
 import {
   LayoutGrid,
@@ -13,9 +14,11 @@ import {
   Percent,
   Settings,
 } from "lucide-react";
+import { auth } from "@/lib/firebase";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const menu = [
     { label: "Dashboard", icon: <LayoutGrid size={18} />, href: "/dashboard" },
@@ -28,13 +31,20 @@ export default function Sidebar() {
     { label: "Cài đặt", icon: <Settings size={18} />, href: "/settings" },
   ];
 
+  const handleLogout = async () => {
+    await signOut(auth);
+    localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_email");
+    router.push("/login");
+  };
+
   return (
     <aside className="w-64 bg-[#0a0a0a] border-r border-white/10 p-6 flex flex-col gap-6 h-screen sticky top-0">
       <h1 className="text-2xl font-bold tracking-widest text-white">
         SEPHORA
       </h1>
 
-      <nav className="flex flex-col gap-2">
+      <nav className="flex flex-col gap-2 flex-1">
         {menu.map((item) => (
           <SidebarItem
             key={item.label}
@@ -45,6 +55,13 @@ export default function Sidebar() {
           />
         ))}
       </nav>
+
+      <button
+        onClick={handleLogout}
+        className="mt-auto w-full rounded-lg border border-white/20 py-2 text-sm text-white/80 hover:bg-white/10 transition"
+      >
+        Đăng xuất
+      </button>
     </aside>
   );
 }

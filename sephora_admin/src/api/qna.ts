@@ -21,18 +21,18 @@ export interface QAPaginated {
 
 export const qnaApi = {
   getAll(query: string): Promise<QAPaginated> {
-    return fetchJSON(`/admin/questions/${query}`);
+    return fetchJSON(`/api/admin/questions/${query}`);
   },
 
   answer(id: number, answer: string): Promise<{ message: string }> {
-    return fetchJSON(`/admin/questions/${id}/answer/`, {
+    return fetchJSON(`/api/admin/questions/${id}/answer/`, {
       method: "POST",
       body: JSON.stringify({ answer }),
     });
   },
 
   delete(id: number): Promise<{ message: string }> {
-    return fetchJSON(`/admin/questions/${id}/delete/`, {
+    return fetchJSON(`/api/admin/questions/${id}/delete/`, {
       method: "DELETE",
     });
   },

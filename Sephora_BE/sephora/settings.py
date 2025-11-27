@@ -14,6 +14,7 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = BASE_DIR.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     'addresses',
     'locations',
     'payments',
+    'recommendations',
 ]
 
 MIDDLEWARE = [
@@ -122,9 +124,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'sephora',
         'USER': 'postgres',     
-        'PASSWORD': '123456',   
+        'PASSWORD': 'postgres123',   
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '5433',
         'OPTIONS': {
             'options': '-c search_path=sephora_recommendation'
         },
@@ -172,3 +174,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+ML_ARTIFACTS = {
+    "DNN_DIR": PROJECT_ROOT / "Model_AI_Sephora_DNN" / "artifacts",
+    "PRODUCT_CSV": PROJECT_ROOT / "Model_AI_Sephora_DNN" / "data" / "product_info.csv",
+    "NCF_DIR": PROJECT_ROOT / "Model_AI_Sephora_NCF" / "artifacts" / "ncf",
+}

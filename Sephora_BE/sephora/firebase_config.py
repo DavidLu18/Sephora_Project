@@ -2,7 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, auth
 import os
 
-cred_path = os.path.join(os.path.dirname(__file__), "firebase_key.json")
+cred_path = "D:/ALL PROJECTS/Final_Projects/Sephora_Project/Sephora_BE/firebase_key.json"
 cred = credentials.Certificate(cred_path)
 
 # Chỉ khởi tạo nếu chưa có

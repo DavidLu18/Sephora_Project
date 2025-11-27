@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from firebase_admin import auth
 from firebase_admin._auth_utils import UserNotFoundError
-from .models import User
+from .models import User, UserRole
 from .serializers import UserSerializer
 from sephora.firebase_config import *   #  Thêm dòng này để khởi tạo firebase_admin
 import traceback
@@ -95,6 +95,7 @@ def register_user(request):
             registrationsource="firebase",
             isactive=True
         )
+        UserRole.objects.get_or_create(user=user, defaults={"role": "customer"})
 
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
@@ -118,6 +119,7 @@ def login_user(request):
         user, created = User.objects.get_or_create(email=email)
         user.emailverified = True
         user.save()
+        UserRole.objects.get_or_create(user=user, defaults={"role": "customer"})
 
         return Response(UserSerializer(user).data)
 
@@ -133,7 +135,7 @@ def get_user(request):
     if not email:
         return Response({"message": "Thiếu email"}, status=400)
     try:
-        user = User.objects.get(email=email)
+        user = User.objects.select_related("role_entry").get(email=email)
         return Response(UserSerializer(user).data)
     except User.DoesNotExist:
         return Response({"message": "Không tìm thấy user"}, status=404)

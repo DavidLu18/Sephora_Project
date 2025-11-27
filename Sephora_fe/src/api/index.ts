@@ -72,6 +72,101 @@ export async function getBrands(): Promise<Brand[]> {
 }
 
 
+export interface PersonalizedSkinProfilePayload {
+  skin_type?: string;
+  skin_concerns?: string[];
+  age_range?: string;
+  skin_tone?: string;
+  eye_color?: string;
+  hair_color?: string;
+  fragrance_pref?: string;
+  allergy_info?: string;
+  budget_level?: string;
+  climate?: string;
+  routine_focus?: string;
+  save_profile?: boolean;
+  legacy_author_id?: string;
+}
+
+export interface PersonalizedSearchPayload {
+  search_query?: string;
+  limit?: number;
+  session_id?: string;
+  user_email?: string;
+  skin_profile: PersonalizedSkinProfilePayload;
+}
+
+export interface PersonalizedRecommendation {
+  product: Product;
+  match_percentage: number;
+  reasons: string[];
+  scores: {
+    dnn: number;
+    ncf: number | null;
+    final: number;
+  };
+  ranking?: {
+    bucket_label: string;
+    z_score: number;
+    diff_percent: number;
+  };
+}
+
+export interface PersonalizedSearchResponse {
+  session_id: string;
+  personalized: boolean;
+  results: PersonalizedRecommendation[];
+  explanation: {
+    summary: string;
+    factors: {
+      skin_type?: string;
+      concerns?: string[];
+      age_range?: string;
+    };
+  };
+}
+
+export interface PersonalizedFeedbackPayload {
+  session_id: string;
+  rating: number;
+  helpful?: boolean;
+  comment?: string;
+  experience_tags?: string[];
+}
+
+export async function personalizedSearch(
+  payload: PersonalizedSearchPayload
+): Promise<PersonalizedSearchResponse> {
+  const res = await fetch(`${API_BASE_URL}/recommendations/personalized-search/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || "Không thể tạo gợi ý cá nhân hóa");
+  }
+
+  return (await res.json()) as PersonalizedSearchResponse;
+}
+
+export async function submitPersonalizedFeedback(payload: PersonalizedFeedbackPayload) {
+  const res = await fetch(`${API_BASE_URL}/recommendations/personalized-feedback/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || "Không thể gửi phản hồi");
+  }
+
+  return res.json();
+}
+
+
 interface ProductResponse {
   count: number;
   results: Product[];

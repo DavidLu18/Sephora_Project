@@ -1,6 +1,5 @@
 import { fetchJSON, fetchFormData } from "./index";
-import { API_URL } from "@/api/index";
-import { Product,ProductFormData  } from "@/types/product";
+import { Product, ProductFormData } from "@/types/product";
 // Get list products
 export async function getProducts(
   page: number,
@@ -25,19 +24,18 @@ export async function getProducts(
     filters.status.forEach((s) => params.append("status", s));
   }
 
-  const res = await fetch(`${API_URL}/products/?${params.toString()}`);
-  return res.json();
+  return fetchJSON(`/api/products/?${params.toString()}`);
 }
 
 
 // Get product by ID
 export const getProductById = async (id: number): Promise<Product> => {
-  return await fetchJSON(`/products/${id}/`);
+  return await fetchJSON(`/api/products/${id}/`);
 };
 
 // CREATE product (multipart/form-data)
 export const createProduct = async (data: FormData): Promise<Product> => {
-  return await fetchFormData(`/admin/products/`, {
+  return await fetchFormData(`/api/admin/products/`, {
     method: "POST",
     body: data,
   });
@@ -45,7 +43,7 @@ export const createProduct = async (data: FormData): Promise<Product> => {
 
 // UPDATE product (multipart/form-data)
 export const updateProduct = async (id: number, data: ProductFormData) => {
-  return await fetchJSON(`/admin/products/${id}/`, {
+  return await fetchJSON(`/api/admin/products/${id}/`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
@@ -53,7 +51,7 @@ export const updateProduct = async (id: number, data: ProductFormData) => {
 
 // DELETE product
 export const deleteProduct = async (id: number): Promise<Product> => {
-  return await fetchJSON(`/admin/products/${id}/`, {
+  return await fetchJSON(`/api/admin/products/${id}/`, {
     method: "DELETE",
   });
 };
@@ -67,10 +65,8 @@ export async function uploadProductImage(
   fd.append("product_id", String(productId));
   fd.append("file", file);
 
-  const res = await fetch(`${API_URL}/admin/products/upload-image/`, {
+  return fetchFormData(`/api/admin/products/upload-image/`, {
     method: "POST",
     body: fd,
   });
-
-  return await res.json();
 }

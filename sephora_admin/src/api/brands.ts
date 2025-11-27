@@ -2,12 +2,12 @@ import { fetchJSON } from "./index";
 import { Brand } from "@/types";
 
 export const getBrands = async (): Promise<Brand[]> => {
-  return await fetchJSON("/brands/");
+  return await fetchJSON("/api/brands/");
 };
 export const createBrand = async (
   data: { brand_name: string }
 ): Promise<Brand> => {
-  return await fetchJSON("/brands/", {
+  return await fetchJSON("/api/brands/", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -17,12 +17,12 @@ export const updateBrand = async (
   id: number,
   data: { brand_name: string }
 ): Promise<Brand> => {
-  return await fetchJSON(`/brands/${id}/`, {
+  return await fetchJSON(`/api/brands/${id}/`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 };
 
 export const deleteBrand = async (id: number): Promise<void> => {
-  return await fetchJSON(`/brands/${id}/`, { method: "DELETE" });
+  return await fetchJSON(`/api/brands/${id}/`, { method: "DELETE" });
 };

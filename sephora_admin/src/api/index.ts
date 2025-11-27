@@ -1,13 +1,22 @@
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+const getAuthToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+
+const buildHeaders = (headers: HeadersInit = {}) => {
+  const token = getAuthToken();
+  return {
+    "Content-Type": "application/json",
+    ...headers,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 export const fetchJSON = async (url: string, options: RequestInit = {}) => {
-  const res = await fetch(process.env.NEXT_PUBLIC_API_URL + url, {
+  const res = await fetch(API_URL + url, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+    headers: buildHeaders(options.headers || {}),
     credentials: "include",
   });
 
@@ -15,17 +24,16 @@ export const fetchJSON = async (url: string, options: RequestInit = {}) => {
   return res.json();
 };
 
-
-
 export const fetchFormData = async (
   url: string,
   options: RequestInit = {}
 ) => {
-  const res = await fetch(process.env.NEXT_PUBLIC_API_URL + url, {
+  const token = getAuthToken();
+  const res = await fetch(API_URL + url, {
     ...options,
     headers: {
       ...(options.headers || {}),
-      // Không set Content-Type, để browser tự set multipart boundary
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     credentials: "include",
   });
