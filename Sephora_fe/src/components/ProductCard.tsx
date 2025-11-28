@@ -35,14 +35,13 @@ export default function ProductCard({ product }: Props) {
   const lowestCategory =
   product.category?.category_name || "Uncategorized";
 
-  const USD_TO_VND = 25000; // bạn có thể điều chỉnh tỉ giá ở đây
-
-  const convertToVND = (usdValue: number | string | undefined) => {
-    if (!usdValue) return "N/A";
-    const value = Number(usdValue) * USD_TO_VND;
-    return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
-  };
-
+    const formatVND = (value: number | string | null) => {
+      if (!value) return "N/A";
+      return Number(value).toLocaleString("vi-VN", {
+        style: "currency",
+        currency: "VND",
+      });
+    };
   return (
     <Link href={`/products/${product.productid}`} className="block">
       <div className="border rounded-lg shadow-sm p-4 hover:shadow-md transition flex flex-col h-full">
@@ -84,16 +83,15 @@ export default function ProductCard({ product }: Props) {
         </p>
 
         
-        {/* giá */}
-        
+        {/* Giá */}
         <div className="mt-auto">
           {isOnSale && originalPrice && (
             <p className="text-sm text-red-400 line-through">
-              {convertToVND(product.price)} {/* Giá gốc */}
+              {formatVND(originalPrice)}
             </p>
           )}
           <p className="text-lg font-semibold text-gray-900">
-            {convertToVND(displayPrice)} {/* Giá hiển thị */}
+            {formatVND(displayPrice)}
           </p>
         </div>
 

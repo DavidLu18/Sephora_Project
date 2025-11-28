@@ -1,107 +1,164 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from users.models import User
-from orders.models import Orders
-from .models import UserPaymentMethod
-from .serializers import UserPaymentMethodSerializer
+from django.shortcuts import redirect
+from django.conf import settings
 
-
-def get_user_from_firebase(firebase_uid):
-    try:
-        return User.objects.get(firebase_uid=firebase_uid)
-    except User.DoesNotExist:
-        return None
-
-
-@api_view(['GET'])
-def get_payment_methods(request):
-    user_uid = getattr(request.user, "uid", None)
-
-    if not user_uid:
-        return Response({"error": "Bạn chưa đăng nhập"}, status=401)
-
-    user = get_user_from_firebase(user_uid)
-    if not user:
-        return Response({"error": "Không tìm thấy người dùng"}, status=404)
-
-    methods = UserPaymentMethod.objects.filter(user=user).order_by("-is_default")
-    serializer = UserPaymentMethodSerializer(methods, many=True)
-    return Response(serializer.data)
+from cart.models import Cart, CartItems
+from products.models import Product
+from orders.models import Orders, OrderItems
+from .vnpay_service import verify_vnpay_hash
 
 
 
-@api_view(['POST'])
-def add_payment_method(request):
-    user_uid = getattr(request.user, "uid", None)
-
-    if not user_uid:
-        return Response({"error": "Bạn chưa đăng nhập"}, status=401)
-
-    user = get_user_from_firebase(user_uid)
-    if not user:
-        return Response({"error": "Không tìm thấy người dùng"}, status=404)
-
-    serializer = UserPaymentMethodSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    # nếu gửi is_default = true -> tắt default cũ
-    if serializer.validated_data.get("is_default"):
-        UserPaymentMethod.objects.filter(user=user).update(is_default=False)
-
-    payment_method = serializer.save(user=user)   # 👈 gán user ở đây
-
-    return Response(UserPaymentMethodSerializer(payment_method).data, status=201)
-
-
-
-@api_view(['DELETE'])
-def delete_payment_method(request, method_id):
-    user_uid = getattr(request.user, "uid", None)
-    user = get_user_from_firebase(user_uid)
-
-    if not user:
-        return Response({"error": "Không tìm thấy người dùng"}, status=404)
-
-    method = UserPaymentMethod.objects.filter(id=method_id, user=user).first()
-    if not method:
-        return Response({"error": "Không tìm thấy phương thức"}, status=404)
-
-    method.delete()
-    return Response({"message": "Đã xóa"}, status=200)
-
-
-@api_view(['PUT'])
-def set_default_payment_method(request, method_id):
-    user_uid = getattr(request.user, "uid", None)
-    user = get_user_from_firebase(user_uid)
-
-    if not user:
-        return Response({"error": "Không tìm thấy người dùng"}, status=404)
-
-    method = UserPaymentMethod.objects.filter(id=method_id, user=user).first()
-    if not method:
-        return Response({"error": "Không tìm thấy phương thức"}, status=404)
-
-    UserPaymentMethod.objects.filter(user=user).update(is_default=False)
-    method.is_default = True
-    method.save()
-
-    return Response({"message": "Đặt mặc định thành công"})
-
-
+"""
+==============================
+ VNPAY RETURN (FE được gọi về)
+==============================
+- KHÔNG tạo đơn ở đây
+- Chỉ hiển thị kết quả
+- Đơn tạo ở IPN
+"""
 @api_view(["GET"])
 def vnpay_return(request):
-        params = request.query_params
-        order_id = params.get("vnp_TxnRef")
-        code = params.get("vnp_ResponseCode")
+    data = request.GET.dict()
 
-        order = Orders.objects.get(orderid=order_id)
+    if not verify_vnpay_hash(data.copy()):
+        return Response({"success": False, "message": "Chữ ký không hợp lệ"})
 
-        if code == "00":
-            order.status = "paid"
-            order.save()
-            return Response({"message": "Thanh toán VNPay thành công"})
+    # Thanh toán thành công
+    if data.get("vnp_ResponseCode") == "00" and data.get("vnp_TransactionStatus") == "00":
 
-        order.status = "failed"
-        order.save()
-        return Response({"message": "Thanh toán thất bại"})
+        # ============================
+        # PARSE order_info dạng mới
+        # ============================
+        # cart-3|addr-7|phone-0909123456
+        order_info = data.get("vnp_OrderInfo")
+
+        parts = order_info.split("|")
+        cart_id = int(parts[0].split("-")[1])
+        address_id = int(parts[1].split("-")[1])
+        phone_number = parts[2].split("-")[1]
+
+        # ============================
+        # Lấy giỏ hàng
+        # ============================
+        cart = Cart.objects.filter(cartid=cart_id).first()
+        if not cart:
+            return Response({"success": False, "message": "Không tìm thấy giỏ hàng"})
+
+        items = CartItems.objects.filter(cartid=cart_id)
+        if not items.exists():
+            return Response({"success": False, "message": "Giỏ hàng trống"})
+
+        # ============================
+        # TÍNH TỔNG
+        # ============================
+        total = 0
+        for i in items:
+            product = Product.objects.get(productid=i.productid)
+            total += product.price * i.quantity
+
+        # ============================
+        # TẠO ĐƠN (ĐÃ THÊM ADDRESS + PHONE)
+        # ============================
+        order = Orders.objects.create(
+            userid=cart.userid,
+            addressid=address_id,
+            phone_number=phone_number,
+            total=total,
+            status="pending",
+            payment_method="VNPAY",
+            shipping_method="Tiêu chuẩn",
+        )
+
+        # Tạo order items
+        for i in items:
+            product = Product.objects.get(productid=i.productid)
+            OrderItems.objects.create(
+                orderid=order.orderid,
+                productid=i.productid,
+                quantity=i.quantity,
+                price=product.price
+            )
+
+        # Xóa giỏ hàng sau khi tạo đơn
+        items.delete()
+
+        return Response({
+            "success": True,
+            "message": "Thanh toán thành công – đơn hàng đã được tạo",
+            "order_id": order.orderid
+        })
+
+    return Response({
+        "success": False,
+        "message": "Thanh toán thất bại hoặc bị hủy"
+    })
+
+"""
+============================================
+ VNPAY IPN (BACKEND – tạo đơn tại đây)
+============================================
+- Xác thực chữ ký
+- Kiểm tra trạng thái thanh toán
+- Tạo đơn
+- Xóa giỏ hàng
+"""
+@api_view(["GET"])
+def vnpay_ipn(request):
+    print("\n================= VNPAY IPN DEBUG =================")
+    print("IPN QUERY:", request.GET)
+    print("===================================================\n")
+    data = request.GET.dict()
+    if "vnp_SecureHash" not in data:
+        return Response({"RspCode": "97", "Message": "Thiếu chữ ký"})
+
+    if not verify_vnpay_hash(data.copy()):
+        return Response({"RspCode": "97", "Message": "Sai chữ ký"})
+
+    txn_ref = data.get("vnp_TxnRef")   # transaction_id = cartid
+    response_code = data.get("vnp_ResponseCode")
+    status_code = data.get("vnp_TransactionStatus")
+
+    # Check thanh toán thành công
+    if response_code == "00" and status_code == "00":
+        cart_id = int(txn_ref)
+        cart = Cart.objects.filter(cartid=cart_id).first()
+
+        if not cart:
+            return Response({"RspCode": "01", "Message": "Không tìm thấy giỏ hàng"})
+
+        items = CartItems.objects.filter(cartid=cart_id)
+        if not items.exists():
+            return Response({"RspCode": "02", "Message": "Giỏ hàng trống"})
+
+        # Tính tổng
+        total = 0
+        for it in items:
+            total += it.quantity * it.product.price
+
+        # TẠO ĐƠN
+        order = Orders.objects.create(
+            userid=cart.userid,
+            total=total,
+            status="pending",
+            payment_method="VNPAY",
+            shipping_method="Tiêu chuẩn",
+        )
+
+        # Tạo Order items
+        for it in items:
+            OrderItems.objects.create(
+                orderid=order.orderid,
+                productid=it.productid,
+                quantity=it.quantity,
+                price=it.product.price
+            )
+
+        # Xóa giỏ
+        items.delete()
+
+        return Response({"RspCode": "00", "Message": "Xác nhận thành công"})
+
+    # Thanh toán thất bại
+    return Response({"RspCode": "00", "Message": "Giao dịch thất bại"})

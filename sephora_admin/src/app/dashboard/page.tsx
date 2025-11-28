@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import StatCard from "@/components/StatCard";
-import InsightRow from "@/components/InsightRow";
-import CustomerItem from "@/components/CustomerItem";
+// import InsightRow from "@/components/InsightRow";
+// import CustomerItem from "@/components/CustomerItem";
 import { Search } from "lucide-react";
 
 import { getAdminDashboardStats } from "@/api/admin";

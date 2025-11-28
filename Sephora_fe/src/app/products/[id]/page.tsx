@@ -124,13 +124,9 @@ export default function ProductDetail() {
       alert("Không thể thêm vào giỏ hàng. Vui lòng thử lại!");
     }
   };
-
-  const USD_TO_VND = 25000; // bạn có thể đổi tỉ giá theo nhu cầu
-
-  const convertToVND = (usdValue: number | string | null | undefined) => {
-    if (!usdValue) return "N/A";
-    const value = Number(usdValue) * USD_TO_VND;
-    return value.toLocaleString("vi-VN", {
+  const formatVND = (value: number | string | null | undefined) => {
+    if (!value) return "N/A";
+    return Number(value).toLocaleString("vi-VN", {
       style: "currency",
       currency: "VND",
     });
@@ -235,11 +231,12 @@ export default function ProductDetail() {
             {/* PRICE */}
             <div className="flex items-center gap-3 mb-3">
               <span className="text-2xl font-semibold text-red-600">
-                {convertToVND(displayPrice)}
+                {formatVND(displayPrice)}
               </span>
+
               {isOnSale && (
                 <span className="text-gray-400 line-through">
-                  {convertToVND(price)}
+                  {formatVND(price)}
                 </span>
               )}
             </div>

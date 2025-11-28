@@ -25,7 +25,7 @@ class FirebaseAuthenticationMiddleware(MiddlewareMixin):
 
         id_token = token_header.split("Bearer ")[1]
         try:
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=120)
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
             request.user = FirebaseUser(decoded_token)  #  dùng lớp mới
             print(f" Verified UID: {decoded_token.get('uid')}, Email: {decoded_token.get('email')}")
         except Exception as e:

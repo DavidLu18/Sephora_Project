@@ -3,14 +3,23 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { getCart, removeFromCart, checkoutCart, updateCartQuantity, getAddresses, getPaymentMethods } from '@/api';
+import { getCart, removeFromCart, checkoutCart, updateCartQuantity, getAddresses } from '@/api';
 import { Cart, CartItem } from '@/types/cart';
 import { Address } from "@/types/address";
-import { PaymentMethod } from "@/types/payment";
 import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { convertToVND } from "@/lib/utils";
+
+const formatVND = (value: number | string | null | undefined) => {
+  if (value == null) return "N/A";
+  const num = Number(value);
+  if (Number.isNaN(num)) return "N/A";
+  return num.toLocaleString("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  });
+};
+
 export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +28,6 @@ export default function CartPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
 
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string>("COD");
 
   useEffect(() => {
@@ -42,16 +50,6 @@ export default function CartPage() {
             console.error("Lỗi khi tải địa chỉ:", e);
           }
 
-          // NEW: Load phương thức thanh toán
-          try {
-            const methodList = await getPaymentMethods();
-            setPaymentMethods(methodList);
-
-            const defPay = methodList.find(m => m.is_default);
-            if (defPay) setSelectedPayment(defPay.method_type);
-          } catch (e) {
-            console.error("Lỗi khi tải payment:", e);
-          }
         } catch (err) {
           console.error('Lỗi khi tải giỏ hàng:', err);
         }
@@ -79,33 +77,35 @@ export default function CartPage() {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const res = await checkoutCart(selectedPayment, token);
+    const res = await checkoutCart(selectedPayment, selectedAddress, token);
 
-    //  Nếu backend trả link VNPay -> redirect
     if (res.payment_url) {
-      window.location.href = res.payment_url;
+      window.open(res.payment_url, "_blank", "noopener,noreferrer");
       return;
     }
 
-    //  Nếu COD -> xử lý như cũ
     alert(res.message || "Thanh toán thành công!");
 
     window.dispatchEvent(new Event("cartUpdated"));
     const updated = await getCart(token);
     setCart(updated);
 
-    // Nếu COD -> chuyển sang trang đơn hàng
     if (selectedPayment === "COD") {
       window.location.href = "/account/orders";
     }
   };
 
-
   if (loading) return <div className="p-10 text-center">Đang tải giỏ hàng...</div>;
   if (!userReady) return <div className="p-10 text-center">Vui lòng đăng nhập để xem giỏ hàng.</div>;
   if (!cart || !cart.items?.length) return <div className="p-10 text-center">Giỏ hàng trống.</div>;
 
-  const total = cart.items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  const total = cart.items.reduce((sum, i) => {
+    const price =
+      typeof i.product.price === "string"
+        ? parseFloat(i.product.price)
+        : i.product.price || 0;
+    return sum + price * i.quantity;
+  }, 0);
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4">
@@ -138,11 +138,15 @@ export default function CartPage() {
 
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
-                    <p className="font-semibold text-sm uppercase text-gray-600">{item.product.brand_name || "Unknown Brand"}</p>
+                    <p className="font-semibold text-sm uppercase text-gray-600">
+                      {item.product.brand_name || "Unknown Brand"}
+                    </p>
                     <p className="font-medium text-lg mt-1">{item.product.product_name}</p>
-                    <p className="text-sm text-gray-500 mt-1">SIZE {item.product.size || "—"}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      SIZE {item.product.size || "—"}
+                    </p>
                     <p className="font-semibold text-base mt-2">
-                      {convertToVND(item.product.price)}
+                      {formatVND(item.product.price)}
                     </p>
                   </div>
 
@@ -150,10 +154,12 @@ export default function CartPage() {
                     <div className="flex items-center gap-3">
                       <select
                         value={item.quantity}
-                        onChange={(e) => updateCartQuantity(item.cartitemid, Number(e.target.value)).then(() => {
-                          const token = localStorage.getItem('token') || undefined; // Chuyển null thành undefined
-                          getCart(token).then(setCart);// Cập nhật giỏ hàng sau khi thay đổi số lượng
-                        })}
+                        onChange={(e) =>
+                          updateCartQuantity(item.cartitemid, Number(e.target.value)).then(() => {
+                            const token = localStorage.getItem('token') || undefined;
+                            getCart(token).then(setCart);
+                          })
+                        }
                         className="border rounded-md px-3 py-1 text-sm focus:outline-none"
                       >
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((q) => (
@@ -179,46 +185,49 @@ export default function CartPage() {
         <div className="space-y-6">
           <div className="border border-gray-200 rounded-xl shadow-sm p-5">
             <h3 className="font-semibold text-lg mb-3">Tổng tiền</h3>
-            <p className="text-xl font-bold mb-2"> {convertToVND(total)}</p>
-            <p className="text-sm text-gray-500 mb-5">Phí vận chuyển & thuế tính ở bước thanh toán.</p>
-            {/* NEW: Phương thức thanh toán */}
+            <p className="text-xl font-bold mb-2">
+              {formatVND(total)}
+            </p>
+            <p className="text-sm text-gray-500 mb-5">
+              Phí vận chuyển & thuế tính ở bước thanh toán.
+            </p>
+
             <div className="mb-4">
-              <label className="font-medium text-sm block mb-2">Phương thức thanh toán</label>
+              <label className="font-medium text-sm block mb-2">
+                Phương thức thanh toán
+              </label>
               <select
                 value={selectedPayment}
                 onChange={(e) => setSelectedPayment(e.target.value)}
                 className="border px-3 py-2 rounded w-full"
               >
-                <option value="COD">COD (Thanh toán khi nhận hàng)</option>
-                {paymentMethods.map(pm => (
-                  <option key={pm.id} value={pm.method_type}>
-                    {pm.display_name}
-                  </option>
-                ))}
+                <option value="COD">Thanh toán khi nhận hàng (COD)</option>
+                <option value="VNPAY">Thanh toán qua VNPay</option>
               </select>
             </div>
+
             <button
               onClick={handleCheckout}
               className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold transition"
             >
               Đặt hàng
             </button>
-
-
           </div>
-          {/* NEW: Địa chỉ giao hàng */}
+
           <div className="border border-gray-200 rounded-xl shadow-sm p-5 mb-6">
             <h3 className="font-semibold text-lg mb-3">Địa chỉ giao hàng</h3>
 
             {addresses.length === 0 ? (
-              <p className="text-gray-500 text-sm">Bạn chưa có địa chỉ. Vui lòng thêm trong tài khoản.</p>
+              <p className="text-gray-500 text-sm">
+                Bạn chưa có địa chỉ. Vui lòng thêm trong tài khoản.
+              </p>
             ) : (
               <select
                 value={selectedAddress ?? ""}
                 onChange={(e) => setSelectedAddress(Number(e.target.value))}
                 className="border px-3 py-2 rounded w-full"
               >
-                {addresses.map(addr => (
+                {addresses.map((addr) => (
                   <option key={addr.addressid} value={addr.addressid}>
                     {addr.street}, {addr.district}, {addr.city}
                   </option>
@@ -226,8 +235,6 @@ export default function CartPage() {
               </select>
             )}
           </div>
-          
-
         </div>
       </div>
     </div>

@@ -21,47 +21,53 @@ export default function SignInModal({
   if (!isOpen) return null;
 
   const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-      if (!user.emailVerified) {
-        setError("Email chưa được xác minh. Vui lòng kiểm tra hộp thư.");
-        await auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      alert(`Đăng nhập thành công! Chào ${user.email}`);
-      onClose();
-    } catch (err: unknown) {
-      if (err instanceof FirebaseError) {
-        switch (err.code) {
-          case "auth/user-not-found":
-            setError("Tài khoản không tồn tại.");
-            break;
-          case "auth/wrong-password":
-            setError("Sai mật khẩu. Vui lòng thử lại.");
-            break;
-          case "auth/too-many-requests":
-            setError("Tài khoản bị khóa tạm thời do đăng nhập sai quá nhiều lần.");
-            break;
-          default:
-            setError("Lỗi đăng nhập: " + err.message);
-        }
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Đã xảy ra lỗi không xác định.");
-      }
-    } finally {
+    if (!user.emailVerified) {
+      setError("Email chưa được xác minh. Vui lòng kiểm tra hộp thư.");
+      await auth.signOut();
       setLoading(false);
+      return;
     }
-  };
+
+    const token = await user.getIdToken(true);
+
+    localStorage.setItem("token", token);
+
+    alert(`Đăng nhập thành công! Chào ${user.email}`);
+
+    onClose();  // đóng modal
+  } catch (err: unknown) {
+    if (err instanceof FirebaseError) {
+      switch (err.code) {
+        case "auth/user-not-found":
+          setError("Tài khoản không tồn tại.");
+          break;
+        case "auth/wrong-password":
+          setError("Sai mật khẩu. Vui lòng thử lại.");
+          break;
+        case "auth/too-many-requests":
+          setError("Tài khoản bị khóa tạm thời do đăng nhập sai quá nhiều lần.");
+          break;
+        default:
+          setError("Lỗi đăng nhập: " + err.message);
+      }
+    } else if (err instanceof Error) {
+      setError(err.message);
+    } else {
+      setError("Đã xảy ra lỗi không xác định.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

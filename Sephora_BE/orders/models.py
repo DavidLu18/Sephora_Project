@@ -9,7 +9,7 @@ class Orders(models.Model):
     shipping_method = models.CharField(max_length=50, null=True, blank=True)
     createdat = models.DateTimeField(auto_now_add=True)
     updatedat = models.DateTimeField(auto_now=True)
-
+    phone_number = models.CharField(max_length=20, null=True, blank=True)
     class Meta:
         db_table = 'orders'
         managed = False

@@ -286,14 +286,21 @@ export const removeFromCart = async (itemId: number, token: string) => {
 };
 
 // Thanh toán giỏ hàng
-export const checkoutCart = async (paymentMethod: string, token?: string) => {
+export const checkoutCart = async (
+  paymentMethod: string,
+  addressId: number | null,
+  token?: string
+) => {
   const response = await fetch('http://localhost:8000/api/cart/checkout/', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ payment_method: paymentMethod }),
+    body: JSON.stringify({
+      payment_method: paymentMethod,
+      address_id: addressId,   // <-- Gửi địa chỉ được chọn lên backend
+    }),
   });
 
   if (!response.ok) {
@@ -302,6 +309,7 @@ export const checkoutCart = async (paymentMethod: string, token?: string) => {
 
   return response.json();
 };
+
 
 // Cập nhật số lượng sản phẩm trong giỏ hàng
 export async function updateCartQuantity(itemId: number, quantity: number): Promise<CartItem> {

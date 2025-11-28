@@ -6,8 +6,8 @@ from .serializers import CartSerializer, CartItemSerializer
 from products.models import Product
 from orders.models import Orders, OrderItems
 from users.models import User  # model user trong DB
-
-
+import random, time
+from addresses.models import Address
 class CartViewSet(viewsets.ViewSet):
     """
     API cho giỏ hàng: /api/cart/
@@ -114,14 +114,44 @@ class CartViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["post"])
     def checkout(self, request):
+        # ===========================
+        # 1) Lấy user từ Firebase uid
+        # ===========================
         user_uid = getattr(request.user, "uid", None)
         if not user_uid:
             return Response({"error": "Bạn chưa đăng nhập"}, status=401)
 
         user_id = self.get_userid_from_firebase(user_uid)
         if not user_id:
-            return Response({"error": "Không tìm thấy người dùng trong hệ thống"}, status=404)
+            return Response({"error": "Không tìm thấy người dùng"}, status=404)
 
+        # Lấy đối tượng User
+        user = User.objects.filter(userid=user_id).first()
+        if not user:
+            return Response({"error": "Không tìm thấy user"}, status=404)
+
+        phone_number = user.phone or ""
+
+        # ======================================
+        # 2) Lấy address_id FE gửi lên & kiểm tra
+        # ======================================
+        address_id = request.data.get("address_id", None)
+        if not address_id:
+            return Response({"error": "Bạn chưa chọn địa chỉ giao hàng"}, status=400)
+
+        try:
+            address_id = int(address_id)
+        except:
+            return Response({"error": "Địa chỉ không hợp lệ"}, status=400)
+
+        # Kiểm tra address có thuộc user không?
+        address = Address.objects.filter(addressid=address_id, userid_id=user_id).first()
+        if not address:
+            return Response({"error": "Địa chỉ không thuộc về bạn"}, status=400)
+
+        # ===========================
+        # 3) Lấy giỏ hàng
+        # ===========================
         cart = Cart.objects.filter(userid=user_id).first()
         if not cart:
             return Response({"message": "Giỏ hàng trống"}, status=400)
@@ -130,60 +160,92 @@ class CartViewSet(viewsets.ViewSet):
         if not items.exists():
             return Response({"message": "Giỏ hàng trống"}, status=400)
 
-        # Tính tổng tiền
+        # ===========================
+        # 4) Tính tổng tiền
+        # ===========================
         total = 0
+        cart_items_data = []
+
         for i in items:
             try:
                 product = Product.objects.get(productid=i.productid)
                 total += (product.price or 0) * i.quantity
+                cart_items_data.append({
+                    "productid": i.productid,
+                    "quantity": i.quantity
+                })
             except Product.DoesNotExist:
                 continue
 
-        payment_method = request.data.get("payment_method", "cod")
+        payment_method = request.data.get("payment_method", "COD").upper()
 
-        # Tạo đơn hàng (chưa xóa giỏ ngay)
-        order = Orders.objects.create(
-            userid=user_id,
-            total=total,
-            status="pending",
-            payment_method=payment_method,
-            shipping_method="Tiêu chuẩn",
-        )
-        print("ORDER ID:", order.orderid)
-        for i in items:
-            try:
-                product = Product.objects.get(productid=i.productid)
+        # ==========================================================
+        # CASE 1️⃣: COD — Tạo đơn ngay lập tức
+        # ==========================================================
+        if payment_method == "COD":
+            order = Orders.objects.create(
+                userid=user_id,
+                addressid=address_id,
+                total=total,
+                status="pending",
+                payment_method="COD",
+                shipping_method="Tiêu chuẩn",
+                phone_number=phone_number,
+            )
+
+            # tạo order items
+            for item in cart_items_data:
+                product = Product.objects.get(productid=item["productid"])
                 OrderItems.objects.create(
                     orderid=order.orderid,
-                    productid=i.productid,
-                    quantity=i.quantity,
-                    price=product.price or 0,
+                    productid=item["productid"],
+                    quantity=item["quantity"],
+                    price=product.price
                 )
-            except Product.DoesNotExist:
-                continue
 
-        #  VNPay THÊM TẠI ĐÂY 
-        if payment_method.lower() in ["vnpay", "credit_card", "vnpay_wallet"]:
+            # Xóa giỏ hàng
+            items.delete()
+
+            return Response(
+                {"message": "Đặt hàng COD thành công", "order_id": order.orderid},
+                status=200
+            )
+
+        # ==========================================================
+        # CASE 2️⃣: VNPAY — Không tạo đơn, chỉ tạo transaction
+        # ==========================================================
+        elif payment_method == "VNPAY":
             from payments.vnpay_service import generate_vnpay_payment_url
-            
-            payment_url = generate_vnpay_payment_url(order.orderid, total)
-            print("=== PAYMENT URL ===")
-            print(payment_url)
-            print("==================")
+            from datetime import datetime
+
+            transaction_id = datetime.now().strftime("%y%m%d%H%M%S")
+
+            # Nhét thông tin để IPN tạo đơn:
+            # (1) cartid
+            # (2) address_id
+            # (3) phone
+            order_info = f"cart-{cart.cartid}|addr-{address_id}|phone-{phone_number}"
+
+            payment_url = generate_vnpay_payment_url(
+                transaction_id,
+                total,
+                order_info
+            )
+
             return Response({
+                "success": True,
                 "payment_url": payment_url,
-                "order_id": order.orderid
+                "transaction_id": transaction_id,
+                "cartid": cart.cartid,
+                "address_id": address_id
             })
 
-        #  Nếu COD thì xử lý như cũ: xóa giỏ hàng
-        items.delete()
+        # ==========================================================
+        # CASE 3️⃣: phương thức thanh toán không hợp lệ
+        # ==========================================================
+        else:
+            return Response({"error": "Phương thức thanh toán không hợp lệ"}, status=400)
 
-        return Response(
-            {"message": "Thanh toán COD thành công", "order_id": order.orderid},
-            status=200,
-        )
-
-    
 
     @action(detail=False, methods=["post"])
     def update_quantity(self, request):

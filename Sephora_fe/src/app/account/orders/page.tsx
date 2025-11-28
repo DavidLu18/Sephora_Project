@@ -7,7 +7,6 @@
   import { auth } from '@/lib/firebase';
   import { addToCart, cancelOrder } from '@/api'; // import addToCart và cancelOrder từ API
   import Link from "next/link";
-  import { convertToVND } from "@/lib/utils";
 
   const TABS = [
     { key: 'pending', label: 'Chờ xác nhận' },
@@ -118,7 +117,13 @@
         alert("Đã có lỗi xảy ra khi hủy đơn hàng.");
       }
     };
-
+    const formatVND = (value: number | string | null) => {
+      if (!value) return "N/A";
+      return Number(value).toLocaleString("vi-VN", {
+        style: "currency",
+        currency: "VND",
+      });
+    };
     if (loading) return <div className="p-10 text-center">Đang tải lịch sử đơn hàng...</div>;
     if (!userReady) return <div className="p-10 text-center">Vui lòng đăng nhập để xem lịch sử đơn hàng.</div>;
 
@@ -209,7 +214,7 @@
 
                     {/* Giá và nút hành động */}
                     <div className="text-right">
-                      <p className="font-semibold text-gray-800">{convertToVND(item.price)}</p>
+                      <p className="font-semibold text-gray-800">{formatVND(item.price)}</p>
                       <div className="mt-2 flex justify-end gap-2">
                         <button
                           onClick={() => handleReorderProduct(item.productid, item.quantity)}
@@ -253,7 +258,7 @@
                   <p className="text-gray-600">
                     <strong>Thành tiền: </strong>
                     <span className="text-red-500 font-semibold">
-                      {convertToVND(order.total)}
+                      {formatVND(order.total)}
                     </span>
                   </p>
                   <div className="flex gap-3">

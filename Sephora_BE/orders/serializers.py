@@ -10,6 +10,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     category_name = serializers.SerializerMethodField()
     product_image = serializers.SerializerMethodField()
     user_review = serializers.SerializerMethodField()
+    phone_number = serializers.CharField(required=False)
     class Meta:
         model = OrderItems
         fields = [
@@ -22,7 +23,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'brand_name',
             'category_name',
             'product_image',
+            "phone_number",
             'user_review'
+
         ]
 
     def get_user_review(self, obj):
