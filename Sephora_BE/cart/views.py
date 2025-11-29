@@ -8,6 +8,8 @@ from orders.models import Orders, OrderItems
 from users.models import User  # model user trong DB
 import random, time
 from addresses.models import Address
+from promotions.models import Voucher, VoucherUsage
+
 class CartViewSet(viewsets.ViewSet):
     """
     API cho giỏ hàng: /api/cart/
@@ -115,7 +117,7 @@ class CartViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"])
     def checkout(self, request):
         # ===========================
-        # 1) Lấy user từ Firebase uid
+        # 1. Lấy user từ Firebase UID
         # ===========================
         user_uid = getattr(request.user, "uid", None)
         if not user_uid:
@@ -125,17 +127,16 @@ class CartViewSet(viewsets.ViewSet):
         if not user_id:
             return Response({"error": "Không tìm thấy người dùng"}, status=404)
 
-        # Lấy đối tượng User
         user = User.objects.filter(userid=user_id).first()
         if not user:
             return Response({"error": "Không tìm thấy user"}, status=404)
 
         phone_number = user.phone or ""
 
-        # ======================================
-        # 2) Lấy address_id FE gửi lên & kiểm tra
-        # ======================================
-        address_id = request.data.get("address_id", None)
+        # ===========================
+        # 2. Kiểm tra address
+        # ===========================
+        address_id = request.data.get("address_id")
         if not address_id:
             return Response({"error": "Bạn chưa chọn địa chỉ giao hàng"}, status=400)
 
@@ -144,13 +145,12 @@ class CartViewSet(viewsets.ViewSet):
         except:
             return Response({"error": "Địa chỉ không hợp lệ"}, status=400)
 
-        # Kiểm tra address có thuộc user không?
         address = Address.objects.filter(addressid=address_id, userid_id=user_id).first()
         if not address:
             return Response({"error": "Địa chỉ không thuộc về bạn"}, status=400)
 
         # ===========================
-        # 3) Lấy giỏ hàng
+        # 3. Lấy giỏ hàng
         # ===========================
         cart = Cart.objects.filter(userid=user_id).first()
         if not cart:
@@ -161,7 +161,7 @@ class CartViewSet(viewsets.ViewSet):
             return Response({"message": "Giỏ hàng trống"}, status=400)
 
         # ===========================
-        # 4) Tính tổng tiền
+        # 4. Tính tổng tiền
         # ===========================
         total = 0
         cart_items_data = []
@@ -177,6 +177,54 @@ class CartViewSet(viewsets.ViewSet):
             except Product.DoesNotExist:
                 continue
 
+        # ===========================
+        # 5. Xử lý VOUCHER
+        # ===========================
+        from decimal import Decimal
+
+        voucher_code = request.data.get("voucher_code")
+        discount_amount = Decimal("0")
+
+        if voucher_code:
+            voucher = Voucher.objects.filter(
+                code__iexact=voucher_code,
+                is_active=True
+            ).first()
+
+            if not voucher:
+                return Response({"error": "Voucher không tồn tại"}, status=400)
+
+            if not voucher.can_use(user):
+                return Response({"error": "Bạn không đủ điều kiện dùng voucher"}, status=400)
+
+            # ================== TÍNH GIẢM GIÁ ==================
+            discount_amount = Decimal("0")
+
+            if voucher.discount_type == "percent":
+                # Tính phần trăm giảm
+                discount_rate = Decimal(voucher.discount_value) / Decimal("100")
+                discount_amount = total * discount_rate
+
+                # Giới hạn giảm tối đa nếu có
+                if voucher.max_discount:
+                    discount_amount = min(discount_amount, Decimal(voucher.max_discount))
+
+            elif voucher.discount_type == "fixed":
+                # Giảm cố định tiền
+                discount_amount = Decimal(voucher.discount_value)
+
+                if voucher.max_discount:
+                    discount_amount = min(discount_amount, Decimal(voucher.max_discount))
+
+                # Không cho giảm quá tổng tiền
+                discount_amount = min(discount_amount, total)
+
+        # ================== TÍNH FINAL TOTAL ==================
+        final_total = total - discount_amount
+        if final_total < Decimal("0"):
+            final_total = Decimal("0")
+
+
         payment_method = request.data.get("payment_method", "COD").upper()
 
         # ==========================================================
@@ -186,14 +234,14 @@ class CartViewSet(viewsets.ViewSet):
             order = Orders.objects.create(
                 userid=user_id,
                 addressid=address_id,
-                total=total,
+                total=final_total,
                 status="pending",
                 payment_method="COD",
                 shipping_method="Tiêu chuẩn",
                 phone_number=phone_number,
+                
             )
 
-            # tạo order items
             for item in cart_items_data:
                 product = Product.objects.get(productid=item["productid"])
                 OrderItems.objects.create(
@@ -203,7 +251,22 @@ class CartViewSet(viewsets.ViewSet):
                     price=product.price
                 )
 
-            # Xóa giỏ hàng
+            # cập nhật usage nếu có voucher
+            from django.utils import timezone
+            if voucher_code:
+                VoucherUsage.objects.create(
+                    user=user,                   # KHÔNG dùng userid
+                    voucher=voucher,             # KHÔNG dùng voucher_id
+                    order=order,      # FK đến vouchers.voucher_id
+                    discount_amount=discount_amount,      # số tiền giảm thực tế
+                    used=True,
+                    used_time=timezone.now()
+                )
+
+                # Nếu bạn vẫn muốn tăng used_count trong bảng vouchers
+                voucher.used_count = (voucher.used_count or 0) + 1
+                voucher.save()
+
             items.delete()
 
             return Response(
@@ -212,7 +275,7 @@ class CartViewSet(viewsets.ViewSet):
             )
 
         # ==========================================================
-        # CASE 2️⃣: VNPAY — Không tạo đơn, chỉ tạo transaction
+        # CASE 2️⃣: VNPAY — tạo transaction, chưa tạo đơn
         # ==========================================================
         elif payment_method == "VNPAY":
             from payments.vnpay_service import generate_vnpay_payment_url
@@ -220,15 +283,18 @@ class CartViewSet(viewsets.ViewSet):
 
             transaction_id = datetime.now().strftime("%y%m%d%H%M%S")
 
-            # Nhét thông tin để IPN tạo đơn:
-            # (1) cartid
-            # (2) address_id
-            # (3) phone
-            order_info = f"cart-{cart.cartid}|addr-{address_id}|phone-{phone_number}"
+            # Thêm voucher & discount vào order_info cho IPN xử lý
+            order_info = (
+                f"cart-{cart.cartid}"
+                f"|addr-{address_id}"
+                f"|phone-{phone_number}"
+                f"|voucher-{voucher_code or 'none'}"
+                f"|discount-{discount_amount}"
+            )
 
             payment_url = generate_vnpay_payment_url(
                 transaction_id,
-                total,
+                final_total,  # GỬI FINAL TOTAL ĐÃ TRỪ VOUCHER
                 order_info
             )
 
@@ -237,14 +303,14 @@ class CartViewSet(viewsets.ViewSet):
                 "payment_url": payment_url,
                 "transaction_id": transaction_id,
                 "cartid": cart.cartid,
-                "address_id": address_id
+                "address_id": address_id,
+                "final_total": final_total,
+                "discount": discount_amount
             })
 
-        # ==========================================================
-        # CASE 3️⃣: phương thức thanh toán không hợp lệ
-        # ==========================================================
         else:
             return Response({"error": "Phương thức thanh toán không hợp lệ"}, status=400)
+
 
 
     @action(detail=False, methods=["post"])

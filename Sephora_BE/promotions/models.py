@@ -1,6 +1,9 @@
 from django.db import models
 from users.models import User
-
+from decimal import Decimal
+from django.db import models
+from orders.models import Orders 
+from rest_framework.response import Response
 class PromotionCampaign(models.Model):
     DISCOUNT_TYPE = [
         ("percent", "Percent"),
@@ -103,30 +106,37 @@ class Voucher(models.Model):
 
     def __str__(self):
         return self.code
-
+    
+    
     # Kiểm tra user có đủ điều kiện dùng voucher không
     def can_use(self, user):
         from django.utils import timezone
-
+        reason = ""
         now = timezone.now()
+        start = timezone.make_aware(self.start_time) if self.start_time and timezone.is_naive(self.start_time) else self.start_time
+        end = timezone.make_aware(self.end_time) if self.end_time and timezone.is_naive(self.end_time) else self.end_time
 
         if not self.is_active:
-            return False
+            return False, "Voucher không còn hoạt động."
 
-        if self.start_time and now < self.start_time:
-            return False
+        elif start and now < start:
+            return False,  "Voucher chưa đến thời gian sử dụng."
 
-        if self.end_time and now > self.end_time:
-            return False
+        elif end and now > end:
+            return False, "Voucher đã hết hạn."
 
-        if self.usage_limit and self.used_count >= self.usage_limit:
-            return False
+        elif self.usage_limit and self.used_count >= self.usage_limit:
+            return False, "Voucher đã được dùng tối đa số lượt."
+        else:
+            user_used = VoucherUsage.objects.filter(
+                user=user, voucher=self, used=True
+            ).count()
+            if user_used >= self.user_limit:
+               return False,  "Bạn đã dùng voucher này quá số lần cho phép."
+        
+        return True, ""
 
-        user_used = VoucherUsage.objects.filter(
-            user=user, voucher=self, used=True
-        ).count()
-
-        return user_used < self.user_limit
+ # sửa path này nếu Orders nằm chỗ khác
 
 class VoucherUsage(models.Model):
     user = models.ForeignKey(
@@ -135,16 +145,33 @@ class VoucherUsage(models.Model):
         db_column="userid"
     )
     voucher = models.ForeignKey(
-        Voucher,
+        "promotions.Voucher",      # dùng string để tránh circular import
         on_delete=models.CASCADE,
         db_column="voucher_id"
     )
+
+    order = models.ForeignKey(
+        "orders.Orders",           # dùng string → OK 100% không circular
+        on_delete=models.CASCADE,
+        db_column="order_id",
+        null=True,
+        blank=True
+    )
+
+    discount_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
     used = models.BooleanField(default=False)
     used_time = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "voucher_usage"
-        unique_together = ("user", "voucher")
+        managed = False
+        # unique_together = ("user", "voucher")  # Tùy bạn
 
     def __str__(self):
         return f"{self.user.email} - {self.voucher.code}"
+

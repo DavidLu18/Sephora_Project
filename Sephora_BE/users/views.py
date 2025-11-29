@@ -171,9 +171,29 @@ def confirm_email_update(request):
     except User.DoesNotExist:
         return Response({"error": "Không tìm thấy người dùng"}, status=404)
 
-    # ⚠️ Ở đây bạn có thể kiểm tra với Firebase hoặc trường `is_email_verified`
+    #  Ở đây bạn có thể kiểm tra với Firebase hoặc trường `is_email_verified`
     # Nếu chưa có cột đó, bạn tạm bỏ qua dòng kiểm tra này
     user.email = new_email
     user.save()
 
     return Response({"success": True, "message": "Email đã được cập nhật thành công"})
+
+@api_view(["GET"])
+def get_user_profile(request):
+    user_uid = getattr(request.user, "uid", None)
+    if not user_uid:
+        return Response({"error": "Bạn chưa đăng nhập"}, status=401)
+
+    # Lấy user trực tiếp bằng firebase_uid
+    user = User.objects.filter(firebase_uid=user_uid).first()
+    if not user:
+        return Response({"error": "Không tìm thấy user"}, status=404)
+
+    return Response({
+        "userid": user.userid,
+        "firstname": user.firstname,
+        "lastname": user.lastname,
+        "email": user.email,
+        "phone": user.phone,
+        "dateofbirth": user.dateofbirth,
+    })

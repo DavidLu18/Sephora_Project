@@ -8,8 +8,9 @@ import { Brand } from "@/types/brand";
 import { ProductQuestion, ProductAnswer } from "@/types/qa";
 import { Address } from "@/types/address";
 import { PaymentMethod } from "@/types/payment";  
-
+import { ApplyVoucherResponse,Voucher  } from "@/types/voucher";
 export const API_BASE_URL = "http://127.0.0.1:8000/api";
+
 
 // Hàm fetchAPI để gửi token vào header
 export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
@@ -26,12 +27,15 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     headers,
     credentials: "include",
   });
-
+  const data = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(`Lỗi khi gọi API: ${response.statusText}`);
+    throw {
+      status: response.status,
+      response: { data },
+    };
   }
 
-  return response.json();
+  return data;
 }
 
 
@@ -166,6 +170,18 @@ export async function submitPersonalizedFeedback(payload: PersonalizedFeedbackPa
   return res.json();
 }
 
+export async function getUserProfile(token: string) {
+  const res = await fetch("http://127.0.0.1:8000/api/users/profile/", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error("Không tải được thông tin user");
+
+  return res.json();
+}
+
 
 interface ProductResponse {
   count: number;
@@ -289,7 +305,8 @@ export const removeFromCart = async (itemId: number, token: string) => {
 export const checkoutCart = async (
   paymentMethod: string,
   addressId: number | null,
-  token?: string
+  token?: string,
+  voucherCode?: string | null
 ) => {
   const response = await fetch('http://localhost:8000/api/cart/checkout/', {
     method: 'POST',
@@ -299,7 +316,8 @@ export const checkoutCart = async (
     },
     body: JSON.stringify({
       payment_method: paymentMethod,
-      address_id: addressId,   // <-- Gửi địa chỉ được chọn lên backend
+      address_id: addressId,  
+      voucher_code: voucherCode || null,
     }),
   });
 
@@ -537,5 +555,36 @@ export async function setDefaultPaymentMethod(methodId: number): Promise<void> {
     credentials: "include",
   });
 }
+
+
+export async function applyVoucher(
+  code: string,
+  orderTotal: number,
+  token: string
+): Promise<ApplyVoucherResponse> {
+    const data = await fetchAPI(`/promotions/apply-voucher/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ code, order_total: orderTotal }),
+    });
+
+    return data;
+}
+
+
+export async function getAvailableVouchers(token: string): Promise<Voucher[]> {
+  return fetchAPI(
+    `/promotions/available-vouchers/`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+}
+
 
 export default fetchAPI;

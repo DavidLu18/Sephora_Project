@@ -257,9 +257,16 @@
                 <div className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-b-xl">
                   <p className="text-gray-600">
                     <strong>Thành tiền: </strong>
-                    <span className="text-red-500 font-semibold">
-                      {formatVND(order.total)}
-                    </span>
+                    {order.total < order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0) ? (
+                      // Hiển thị giá gốc bị gạch đi và giá sau giảm
+                      <>
+                        <span className="line-through text-gray-500">{formatVND(order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0))}</span>
+                        <span className="text-red-500 font-semibold ml-2">{formatVND(order.total)}</span>
+                      </>
+                    ) : (
+                      // Hiển thị chỉ giá sau giảm nếu không có giảm
+                      <span className="text-red-500 font-semibold">{formatVND(order.total)}</span>
+                    )}
                   </p>
                   <div className="flex gap-3">
                     {(order.status === 'pending') && (

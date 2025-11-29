@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from .views import FlashSaleAPIView, ApplyVoucherAPIView
+from .views import FlashSaleAPIView, ApplyVoucherAPIView, AvailableVouchersView
 from .admin_views import (
     PromotionAdminViewSet,
     VoucherAdminViewSet,
@@ -17,6 +17,6 @@ urlpatterns = [
 
     path("flash-sale/", FlashSaleAPIView.as_view()),
     path("apply-voucher/", ApplyVoucherAPIView.as_view()),
-
+    path("available-vouchers/", AvailableVouchersView.as_view(), name="available-vouchers"),
     path("", include(router.urls)),
 ]

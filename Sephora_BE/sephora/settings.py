@@ -29,7 +29,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "dda6c66a5fa0.ngrok-free.app",
+    "571bc7447617.ngrok-free.app",
 ]
 
 
@@ -87,8 +87,10 @@ VNPAY_TMN_CODE = "VSR30IG2"
 VNPAY_HASH_SECRET = "0M8KFBD7KA3XQNYYCWAOEH80TKMRBB8K"
 VNPAY_PAYMENT_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
 
-VNPAY_RETURN_URL = "https://dda6c66a5fa0.ngrok-free.app/api/payment/vnpay_return"
-VNPAY_IPN_URL    = "https://dda6c66a5fa0.ngrok-free.app/api/payment/vnpay_ipn"
+VNPAY_RETURN_URL = "https://571bc7447617.ngrok-free.app/api/payment/vnpay_return"
+VNPAY_IPN_URL    = "https://571bc7447617.ngrok-free.app/api/payment/vnpay_ipn"
+
+
 ROOT_URLCONF = 'sephora.urls'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -126,11 +128,11 @@ WSGI_APPLICATION = 'sephora.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sephora_project',
-        'USER': 'postgres',     
-        'PASSWORD': '123456',   
+        'NAME': 'sephora_project', # Database name
+        'USER': 'postgres',     # Database user
+        'PASSWORD': '123456',   # Database password
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '5432',         # Default PostgreSQL port
         'OPTIONS': {
             'options': '-c search_path=sephora_recommendation'
         },

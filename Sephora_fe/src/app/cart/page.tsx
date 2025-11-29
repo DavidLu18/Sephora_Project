@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { getCart, removeFromCart, checkoutCart, updateCartQuantity, getAddresses } from '@/api';
+import { getCart, removeFromCart, checkoutCart, updateCartQuantity, getAddresses,getUserProfile, applyVoucher, getAvailableVouchers  } from '@/api';
 import { Cart, CartItem } from '@/types/cart';
 import { Address } from "@/types/address";
 import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Voucher } from "@/types/voucher";
 
 const formatVND = (value: number | string | null | undefined) => {
   if (value == null) return "N/A";
@@ -24,11 +25,23 @@ export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [userReady, setUserReady] = useState(false);
-  
+  const [userProfile, setUserProfile] = useState<{ phone?: string } | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
 
   const [selectedPayment, setSelectedPayment] = useState<string>("COD");
+
+  const [voucherCode, setVoucherCode] = useState<string>("");
+  const [voucherInfo, setVoucherInfo] = useState<{
+    code: string;
+    discount_amount: number;
+    final_total: number;
+  } | null>(null);
+  const [voucherMessage, setVoucherMessage] = useState<string | null>(null);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+
+  
+  const [voucherList, setVoucherList] = useState<Voucher[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -40,6 +53,17 @@ export default function CartPage() {
 
           const res = await getCart(token); 
           setCart(res);
+
+          const profile = await getUserProfile(token);
+          setUserProfile(profile);
+          
+          try {
+            const vouchers = await getAvailableVouchers(token);
+            setVoucherList(vouchers);
+          } catch (e) {
+            console.error("Lỗi tải voucher:", e);
+          }
+
           try {
             const addrList = await getAddresses();
             setAddresses(addrList);
@@ -63,6 +87,13 @@ export default function CartPage() {
     return () => unsubscribe(); 
   }, []);
 
+
+  useEffect(() => {
+    setVoucherInfo(null);
+    setVoucherMessage(null);
+    setVoucherCode("");
+  }, [cart]);
+
   const handleRemove = async (itemId: number) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -74,26 +105,117 @@ export default function CartPage() {
   };
 
   const handleCheckout = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    const res = await checkoutCart(selectedPayment, selectedAddress, token);
-
-    if (res.payment_url) {
-      window.open(res.payment_url, "_blank", "noopener,noreferrer");
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Bạn chưa đăng nhập!");
       return;
     }
 
-    alert(res.message || "Thanh toán thành công!");
+    if (!selectedAddress) {
+      alert("Chưa thiết lập địa chỉ giao hàng!");
+      window.location.href = "/account/info_account";
+      return;
+    }
+    if (!userProfile?.phone) {
+      alert("Bạn chưa thêm số điện thoại! Vui lòng cập nhật.");
+      window.location.href = "/account/info_account";
+      return;
+    }
 
-    window.dispatchEvent(new Event("cartUpdated"));
-    const updated = await getCart(token);
-    setCart(updated);
 
-    if (selectedPayment === "COD") {
-      window.location.href = "/account/orders";
+    try {
+      const res = await checkoutCart(
+        selectedPayment,
+        selectedAddress,
+        token,
+        voucherInfo?.code || null
+      );
+
+      // Nếu backend trả lỗi
+      if (res.error || res.success === false) {
+        alert(res.error || res.message || "Thanh toán thất bại!");
+        return;
+      }
+
+      // Nếu là VNPay redirect
+      if (res.payment_url) {
+        window.open(res.payment_url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      alert(res.message || "Thanh toán thành công!");
+
+      window.dispatchEvent(new Event("cartUpdated"));
+      const updated = await getCart(token);
+      setCart(updated);
+
+      if (selectedPayment === "COD") {
+        window.location.href = "/account/orders";
+      }
+
+    } catch (err: unknown) {
+      console.error("Checkout error:", err);
+
+      if (err instanceof Error) {
+        alert("Thanh toán thất bại: " + err.message);
+      } else {
+        alert("Thanh toán thất bại! Vui lòng thử lại.");
+      }
     }
   };
+  const handleApplyVoucher = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Bạn chưa đăng nhập!");
+      return;
+    }
+
+    if (!voucherCode.trim()) {
+      setVoucherMessage("Vui lòng nhập mã voucher.");
+      return;
+    }
+
+    try {
+      setVoucherLoading(true);
+      setVoucherMessage(null);
+
+      const response = await applyVoucher(voucherCode.trim(), total, token);
+
+      if (!response.valid) {
+        setVoucherInfo(null);
+        setVoucherMessage(response.message || "Voucher không hợp lệ.");
+        return;
+      }
+
+      setVoucherInfo({
+        code: response.code || "",
+        discount_amount: response.discount_amount || 0,
+        final_total: response.final_total || total,
+      });
+
+      setVoucherMessage(response.message || "Áp dụng voucher thành công.");
+    }catch (error) {
+      let backendMessage = "";
+
+      // Kiểm tra lỗi từ API trả về (HTTP 400/404/500)
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        (error as { response?: { data?: { message?: string } } }).response?.data?.message
+      ) {
+        backendMessage =
+          (error as { response?: { data?: { message?: string } } }).response!.data!.message!;
+      }
+
+      setVoucherInfo(null);
+      setVoucherMessage(backendMessage || "Áp dụng voucher thất bại.");
+    } finally {
+      setVoucherLoading(false);
+    }
+  };
+
+  
 
   if (loading) return <div className="p-10 text-center">Đang tải giỏ hàng...</div>;
   if (!userReady) return <div className="p-10 text-center">Vui lòng đăng nhập để xem giỏ hàng.</div>;
@@ -106,6 +228,9 @@ export default function CartPage() {
         : i.product.price || 0;
     return sum + price * i.quantity;
   }, 0);
+  
+  const finalTotal = voucherInfo ? voucherInfo.final_total : total;
+  const discountAmount = voucherInfo ? voucherInfo.discount_amount : 0;
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4">
@@ -185,13 +310,78 @@ export default function CartPage() {
         <div className="space-y-6">
           <div className="border border-gray-200 rounded-xl shadow-sm p-5">
             <h3 className="font-semibold text-lg mb-3">Tổng tiền</h3>
-            <p className="text-xl font-bold mb-2">
-              {formatVND(total)}
-            </p>
-            <p className="text-sm text-gray-500 mb-5">
-              Phí vận chuyển & thuế tính ở bước thanh toán.
-            </p>
+             {/* Tổng tạm tính */}
+            <div className="flex justify-between text-sm mb-1">
+              <span>Tạm tính</span>
+              <span>{formatVND(total)}</span>
+            </div>
 
+            {/* Giảm giá voucher nếu có */}
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-sm text-green-600 mb-1">
+                <span>Giảm giá (Voucher {voucherInfo?.code})</span>
+                <span>- {formatVND(discountAmount)}</span>
+              </div>
+            )}
+
+            <hr className="my-2" />
+
+            {/* Tổng thanh toán */}
+            <div className="flex justify-between items-center mb-3">
+              <span className="font-medium">Tổng thanh toán</span>
+              <span className="text-xl font-bold">
+                {formatVND(finalTotal)}
+              </span>
+            </div>
+
+            {/* Ô nhập voucher */}
+            <div className="mb-3">
+              <label className="font-medium text-sm block mb-2">
+                Mã voucher
+              </label>
+              <select
+                className="border px-3 py-2 rounded w-full mb-3"
+                onChange={(e) => {
+                  const selectedCode = e.target.value;
+                  setVoucherCode(selectedCode);
+                }}
+              >
+                <option value="">-- Chọn voucher --</option>
+
+                {voucherList.map((v: Voucher) => (
+                  <option key={v.voucher_id} value={v.code}>
+                    {v.code} • 
+                    {v.discount_type === "percent"
+                      ? `${v.discount_value}%`
+                      : `${formatVND(v.discount_value)}`
+                    }
+                    • HSD: {new Date(v.end_time).toLocaleDateString("vi-VN")}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value)}
+                  className="flex-1 border px-3 py-2 rounded"
+                  placeholder="Nhập mã giảm giá (nếu có)"
+                />
+                <button
+                  onClick={handleApplyVoucher}
+                  disabled={voucherLoading}
+                  className="px-4 py-2 rounded bg-gray-900 text-white text-sm font-semibold hover:bg-black disabled:opacity-60"
+                >
+                  {voucherLoading ? "Đang áp dụng..." : "Áp dụng"}
+                </button>
+              </div>
+              {voucherMessage && (
+                <p className="text-xs mt-2 text-gray-600">
+                  {voucherMessage}
+                </p>
+              )}
+            </div>
+            
             <div className="mb-4">
               <label className="font-medium text-sm block mb-2">
                 Phương thức thanh toán

@@ -21,6 +21,7 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [emailPendingVerification, setEmailPendingVerification] = useState(false);
+
   // Lấy user đang đăng nhập
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -64,10 +65,10 @@ export default function AccountPage() {
                 new_email: firebaseUser.email,
               }),
             });
-            console.log("✅ Email đã xác thực và cập nhật backend");
+            console.log(" Email đã xác thực và cập nhật backend");
             setEmailPendingVerification(false);
           } catch (err) {
-            console.error("❌ Lỗi khi cập nhật email:", err);
+            console.error(" Lỗi khi cập nhật email:", err);
           }
         }
       }
@@ -99,6 +100,21 @@ export default function AccountPage() {
         payload.firstname = formData.firstname || user.firstname;
         payload.lastname = formData.lastname || user.lastname;
       } 
+      else if (field === "phone") {
+        const newPhone = formData.phone;
+
+        if (!newPhone) {
+          alert("Vui lòng nhập số điện thoại!");
+          return;
+        }
+
+        if (!isValidPhone(newPhone)) {
+          alert("Số điện thoại không hợp lệ! Ví dụ đúng: 0901234567");
+          return;
+        }
+
+        payload.phone = newPhone;
+      }
       else if (field === "email") {
         if (!formData.email) {
           alert("Vui lòng nhập email mới!");
@@ -109,7 +125,7 @@ export default function AccountPage() {
           alert("Vui lòng nhập mật khẩu hiện tại để xác thực!");
           return;
         }
-
+        
         try {
           if (auth.currentUser && auth.currentUser.email) {
             const credential = EmailAuthProvider.credential(
@@ -237,7 +253,11 @@ export default function AccountPage() {
       console.error("Lỗi khi cập nhật:", err);
     }
   };
-
+  const isValidPhone = (phone: string | null | undefined): boolean => {
+    if (!phone) return false;
+    const vnPhoneRegex = /^(0|\+84)\d{9}$/;
+    return vnPhoneRegex.test(phone);
+  };
 
   if (loading)
     return (

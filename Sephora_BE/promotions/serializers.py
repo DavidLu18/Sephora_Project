@@ -26,6 +26,9 @@ class VoucherSerializer(serializers.ModelSerializer):
             "code",
             "discount_type",
             "discount_value",
+            "max_discount",
+            "start_time",
+            "end_time",
             "min_order",
             "max_discount",
         ]

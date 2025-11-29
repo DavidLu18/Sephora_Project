@@ -7,8 +7,12 @@ from cart.models import Cart, CartItems
 from products.models import Product
 from orders.models import Orders, OrderItems
 from .vnpay_service import verify_vnpay_hash
+from users.models import User  
 
-
+from django.utils import timezone  # Để lấy thời gian hiện tại
+from promotions.models import Voucher  # Để lấy Voucher (mã giảm giá)
+from promotions.models import VoucherUsage  # Để lưu thông tin vào bảng voucher_usage
+from decimal import Decimal
 
 """
 ==============================
@@ -18,6 +22,22 @@ from .vnpay_service import verify_vnpay_hash
 - Chỉ hiển thị kết quả
 - Đơn tạo ở IPN
 """
+def calculate_discount(voucher, total):
+    discount_amount = Decimal(0)  # Khởi tạo discount_amount kiểu Decimal
+    if voucher.discount_type == "percent":
+        # Chuyển voucher.discount_value thành Decimal
+        discount_amount = total * (Decimal(voucher.discount_value) / Decimal('100'))
+        if voucher.max_discount:
+            discount_amount = min(discount_amount, Decimal(voucher.max_discount))
+    elif voucher.discount_type == "fixed":
+        discount_amount = Decimal(voucher.discount_value)
+        if voucher.max_discount:
+            discount_amount = min(discount_amount, Decimal(voucher.max_discount))
+        discount_amount = min(discount_amount, total)
+
+    print(f"Tính toán giảm giá: {discount_amount}")  # Debug giảm giá
+    return discount_amount
+
 @api_view(["GET"])
 def vnpay_return(request):
     data = request.GET.dict()
@@ -28,20 +48,18 @@ def vnpay_return(request):
     # Thanh toán thành công
     if data.get("vnp_ResponseCode") == "00" and data.get("vnp_TransactionStatus") == "00":
 
-        # ============================
-        # PARSE order_info dạng mới
-        # ============================
-        # cart-3|addr-7|phone-0909123456
+        # ============================ PARSE order_info dạng mới ============================
         order_info = data.get("vnp_OrderInfo")
-
+        print(f"Order Info: {order_info}") 
         parts = order_info.split("|")
         cart_id = int(parts[0].split("-")[1])
         address_id = int(parts[1].split("-")[1])
         phone_number = parts[2].split("-")[1]
+        voucher_code = parts[3].split("-")[1] if len(parts) > 3 else ""
+        
+        print(f"Voucher code từ VNPay: {voucher_code}")
 
-        # ============================
-        # Lấy giỏ hàng
-        # ============================
+        # ============================ Lấy giỏ hàng ============================
         cart = Cart.objects.filter(cartid=cart_id).first()
         if not cart:
             return Response({"success": False, "message": "Không tìm thấy giỏ hàng"})
@@ -50,28 +68,54 @@ def vnpay_return(request):
         if not items.exists():
             return Response({"success": False, "message": "Giỏ hàng trống"})
 
-        # ============================
-        # TÍNH TỔNG
-        # ============================
-        total = 0
+        # ============================ TÍNH TỔNG ============================
+        total_before_discount = 0  # Tổng tiền trước khi áp dụng voucher
+        total = 0  # Giá sau khi áp dụng giảm giá
+
         for i in items:
             product = Product.objects.get(productid=i.productid)
-            total += product.price * i.quantity
+            total_before_discount += product.price * i.quantity  # Tính tổng tiền trước giảm
+            total += product.price * i.quantity  # Giá sau giảm
 
-        # ============================
-        # TẠO ĐƠN (ĐÃ THÊM ADDRESS + PHONE)
-        # ============================
+        # ============================ KIỂM TRA VOUCHER ============================
+        discount_amount = 0  # Khởi tạo discount_amount mặc định là 0
+        if voucher_code:
+            voucher = Voucher.objects.filter(code=voucher_code).first()
+            if voucher:
+                print(f"Voucher tồn tại: {voucher.code}")
+                # Tính số tiền giảm từ voucher
+                discount_amount = calculate_discount(voucher, total_before_discount)  # Sử dụng total_before_discount thay vì total
+                print(f"Số tiền giảm từ voucher: {discount_amount}")
+
+                # Trừ vào tổng tiền
+                total -= discount_amount
+                total = max(total, 0)
+                print(f"Tổng tiền sau khi giảm giá: {total}")
+
+        # ============================ Tạo đơn hàng ============================
+        # Tạo đơn hàng sau khi tính toán giảm giá
         order = Orders.objects.create(
             userid=cart.userid,
             addressid=address_id,
             phone_number=phone_number,
-            total=total,
+            total=total,  # Gửi tổng tiền đã giảm
             status="pending",
             payment_method="VNPAY",
             shipping_method="Tiêu chuẩn",
-        )
+        )   
+        user = User.objects.filter(userid=cart.userid).first()
+        # Lưu vào bảng VoucherUsage nếu có voucher
+        if voucher_code and voucher:
+            VoucherUsage.objects.create(
+                user=user,   
+                voucher_id=voucher.voucher_id,
+                order_id=order.orderid,  # Lưu vào bảng voucher_usage
+                discount_amount=discount_amount,
+                used_time=timezone.now(),
+                used=True
+            )
 
-        # Tạo order items
+        # ============================ Tạo Order Items ============================
         for i in items:
             product = Product.objects.get(productid=i.productid)
             OrderItems.objects.create(
@@ -94,6 +138,10 @@ def vnpay_return(request):
         "success": False,
         "message": "Thanh toán thất bại hoặc bị hủy"
     })
+
+
+
+
 
 """
 ============================================
