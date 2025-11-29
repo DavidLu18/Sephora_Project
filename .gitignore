@@ -1,2 +1,4 @@
 *.pt
 artifacts/
+*.pyc
+__pycache__/
