@@ -6,7 +6,7 @@ import HeaderWrapper from "@/components/HeaderWrapper";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-
+import { WishlistProvider } from "@/hooks/useWishlist";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,23 +33,21 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-visible`}
       >
-        {/* Header luôn ở trên cùng */}
-        <div className="relative z-[2000]">
-          <HeaderWrapper />
-        </div>
+       <WishlistProvider>
+          <div className="relative z-[2000]">
+            <HeaderWrapper />
+          </div>
 
-        {/* Navbar nằm dưới header */}
-        <div className="relative z-[1500]">
-          <Navbar />
-        </div>
+          <div className="relative z-[1500]">
+            <Navbar />
+          </div>
 
-        {/* Nội dung trang */}
-        <main className="relative z-[100]">{children}</main>
+          <main className="relative z-[100]">{children}</main>
 
-        {/* Footer */}
-        <footer className="relative z-[50]">
-          <Footer />
-        </footer>
+          <footer className="relative z-[50]">
+            <Footer />
+          </footer>
+        </WishlistProvider>
       </body>
     </html>
   );

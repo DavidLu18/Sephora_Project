@@ -2,7 +2,7 @@ from django.db import models
 from users.models import User
 
 
-# 🔵 GLOBAL NOTIFICATION — 1 dòng cho toàn bộ người dùng
+# GLOBAL NOTIFICATION — 1 dòng cho toàn bộ người dùng
 class NotificationGlobal(models.Model):
     global_id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=255)
@@ -17,7 +17,7 @@ class NotificationGlobal(models.Model):
         return self.title
 
 
-# 🟢 USER PERSONAL NOTIFICATION — lưu riêng cho từng user
+# USER PERSONAL NOTIFICATION — lưu riêng cho từng user
 class NotificationUser(models.Model):
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, db_column="user_id")

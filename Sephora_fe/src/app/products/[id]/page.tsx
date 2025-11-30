@@ -11,6 +11,8 @@ import ProductQA from "@/components/ProductQA";
 import ReviewSummary from "@/components/reviews/ReviewSummary";
 import ReviewList from "@/components/reviews/ReviewList";
 // import ReviewForm from "@/components/reviews/ReviewForm";
+import { useWishlist } from "@/hooks/useWishlist";
+import WishlistModal from "@/components/WishlistModal";
 
 // 🧱 Kiểu dữ liệu cho review
 export interface Review {
@@ -26,11 +28,15 @@ export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  const [liked, setLiked] = useState(false);
+
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [reviews, setReviews] = useState<Review[]>([]);
+
+  const { wishlistProductIds } = useWishlist();
+  const liked = product ? wishlistProductIds.includes(product.productid) : false;
+  const [showWishlistModal, setShowWishlistModal] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -214,14 +220,12 @@ export default function ProductDetail() {
                   {product.reviews_count || 0} reviews
                 </span>
                 <button
-                  onClick={() => setLiked(!liked)}
+                  onClick={() => setShowWishlistModal(true)}
                   className="flex items-center gap-1 focus:outline-none"
                 >
                   <Heart
                     className={`w-5 h-5 transition-colors ${
-                      liked
-                        ? "fill-red-500 text-red-500"
-                        : "text-black"
+                      liked ? "fill-red-500 text-red-500" : "text-black"
                     }`}
                   />
                 </button>
@@ -338,6 +342,12 @@ export default function ProductDetail() {
           <ReviewList productId={Number(id)} />
         </div>
       </div>
+      {showWishlistModal && (
+        <WishlistModal
+          productId={product.productid}
+          onClose={() => setShowWishlistModal(false)}
+        />
+      )}
     </main>
   );
 }

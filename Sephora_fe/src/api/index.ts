@@ -9,6 +9,7 @@ import { ProductQuestion, ProductAnswer } from "@/types/qa";
 import { Address } from "@/types/address";
 import { PaymentMethod } from "@/types/payment";  
 import { ApplyVoucherResponse,Voucher  } from "@/types/voucher";
+import { NotificationResponse } from "@/types/notification";
 export const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 
@@ -586,5 +587,73 @@ export async function getAvailableVouchers(token: string): Promise<Voucher[]> {
   );
 }
 
+export async function getWishlists(token: string) {
+  return fetchAPI(`/wishlists/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
 
+export async function toggleHeart(productId: number, token: string) {
+  return fetchAPI(`/wishlists/toggle-heart/`, {
+    method: "POST",
+    body: JSON.stringify({ product_id: productId }),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function addToWishlist(wishlistId: number, productId: number, token: string) {
+  return fetchAPI(`/wishlists/${wishlistId}/add-item/`, {
+    method: "POST",
+    body: JSON.stringify({ product_id: productId }),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function removeFromWishlist(wishlistId: number, productId: number, token: string) {
+  return fetchAPI(`/wishlists/${wishlistId}/remove-item/`, {
+    method: "POST",
+    body: JSON.stringify({ product_id: productId }),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createWishlist(name: string, token: string) {
+  return fetchAPI(`/wishlists/`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+export async function renameWishlist(wishlistId: number, name: string, token: string) {
+  return fetchAPI(`/wishlists/${wishlistId}/`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name }),
+  });
+}
+
+// Xóa wishlist
+export async function deleteWishlist(wishlistId: number, token: string) {
+  return fetchAPI(`/wishlists/${wishlistId}/`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export async function getNotifications(token: string): Promise<NotificationResponse> {
+  return await fetchAPI(`/notifications/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function markNotificationRead(id: number, token: string): Promise<void> {
+  await fetchAPI(`/notifications/read/${id}/`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
 export default fetchAPI;

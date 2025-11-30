@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'locations',
     'payments',
     'recommendations',
+    "wishlists.apps.WishlistsConfig",
 ]
 
 MIDDLEWARE = [

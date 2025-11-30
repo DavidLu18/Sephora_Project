@@ -1,12 +1,19 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Heart, ShoppingBag, User } from "lucide-react";
+import { Search, Heart, ShoppingBag, User, Bell  } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import SignInModal from "./auth/SignInModal";
 import SignUpModal from "./auth/SignUpModal";
 import PersonalizedSearchModal from "./PersonalizedSearchModal";
+import {
+  GlobalNotification,
+  UserNotification,
+  NotificationResponse
+} from "@/types/notification";
+import { getNotifications, markNotificationRead } from "@/api";
+
 
 const ADMIN_PANEL_URL =
   process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
@@ -23,7 +30,58 @@ export default function Header() {
   const [cartCount, setCartCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [isPersonalizedOpen, setIsPersonalizedOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationResponse>({
+    global: [],
+    user: [],
+  });
 
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [showNotiDropdown, setShowNotiDropdown] = useState<boolean>(false);
+  const [notiTab, setNotiTab] = useState<"global" | "user">("global");
+  const shownNotifications: GlobalNotification[] | UserNotification[] =
+    notiTab === "global"
+      ? notifications.global
+      : notifications.user;
+
+  useEffect(() => {
+    const fetchNoti = async () => {
+      if (!userEmail) {
+        setNotifications({ global: [], user: [] });
+        setUnreadCount(0);
+        return;
+      }
+
+      const token = await auth.currentUser?.getIdToken(true);
+      if (!token) return;
+
+      const data: NotificationResponse = await getNotifications(token);
+
+      setNotifications(data);
+
+      const unread = data.user.filter((n: UserNotification) => !n.is_read).length;
+      setUnreadCount(unread);
+    };
+
+    fetchNoti();
+  }, [userEmail]);
+
+  const handleRead = async (noti: UserNotification) => {
+    if (noti.is_read) return;
+
+    const token = await auth.currentUser?.getIdToken(true);
+    if (!token) return;
+
+    await markNotificationRead(noti.id, token);
+
+    setNotifications((prev) => ({
+      ...prev,
+      user: prev.user.map((n) =>
+        n.id === noti.id ? { ...n, is_read: true } : n
+      ),
+    }));
+
+    setUnreadCount((c) => c - 1);
+  };
   const toggleMenu = (menu: string) => {
     setOpenMenu(openMenu === menu ? null : menu);
   };
@@ -353,7 +411,11 @@ export default function Header() {
           <div className="relative">
             <Heart
               className="w-5 h-5 cursor-pointer"
-              onClick={() => toggleMenu("wishlist")}
+              onClick={() => {
+                  
+                    router.push("/my-lists");
+                  
+                }}
             />
             {!userEmail && openMenu === "wishlist" && (
               <div className="absolute right-0 mt-2 w-56 bg-white shadow-lg rounded-lg p-4 text-sm z-50">
@@ -410,6 +472,78 @@ export default function Header() {
                 >
                   Đăng kí
                 </button>
+              </div>
+            )}
+          </div>
+          <div className="relative notification-dropdown-area">
+            <Bell
+              className="w-5 h-5 cursor-pointer"
+              onClick={() => setShowNotiDropdown(!showNotiDropdown)}
+            />
+
+            {unreadCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-semibold rounded-full px-1.5 py-0.5">
+                {unreadCount}
+              </span>
+            )}
+
+            {showNotiDropdown && (
+              <div className="absolute right-0 mt-2 w-96 bg-white shadow-lg rounded-lg py-3 text-sm z-[200]">
+
+                {/* Tabs */}
+                <div className="flex border-b">
+                  <button
+                    className={`flex-1 py-2 font-semibold ${
+                      notiTab === "global" ? "border-b-2 border-black" : "text-gray-500"
+                    }`}
+                    onClick={() => setNotiTab("global")}
+                  >
+                    Thông báo chung
+                  </button>
+
+                  <button
+                    className={`flex-1 py-2 font-semibold ${
+                      notiTab === "user" ? "border-b-2 border-black" : "text-gray-500"
+                    }`}
+                    onClick={() => setNotiTab("user")}
+                  >
+                    Thông báo của bạn
+                  </button>
+                </div>
+
+                {/* CONTENT */}
+                <div className="max-h-80 overflow-y-auto">
+
+                  {shownNotifications.map((item) => {
+                    const isGlobal = notiTab === "global";
+
+                    return (
+                      <div
+                        key={isGlobal ? (item as GlobalNotification).global_id : (item as UserNotification).id}
+                        onClick={() => {
+                          if (!isGlobal) {
+                            handleRead(item as UserNotification);
+                          }
+                        }}
+                        className={`px-4 py-3 border-b cursor-pointer hover:bg-gray-100 ${
+                          !isGlobal && !(item as UserNotification).is_read ? "bg-gray-50" : ""
+                        }`}
+                      >
+                        <div className="font-semibold">{item.title}</div>
+                        <div className="text-xs text-gray-600">{item.message}</div>
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          {new Date(item.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {shownNotifications.length === 0 && (
+                    <p className="text-center py-4 text-gray-500 text-sm">
+                      Không có thông báo.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
