@@ -4,8 +4,6 @@ import Link from "next/link";
 import { Product } from "@/types/product";
 import { Heart } from "lucide-react";
 import { useState } from "react";
-
-// Wishlist hooks & modal
 import { useWishlist } from "@/hooks/useWishlist";
 import WishlistModal from "@/components/WishlistModal";
 
@@ -14,31 +12,32 @@ interface Props {
 }
 
 export default function ProductCard({ product }: Props) {
-  const imageSrc = product.image_url || "/products/pro2.jpg";
-
-  // ⭐ Lấy danh sách product ID đã được thích
   const { wishlistProductIds } = useWishlist();
   const liked = wishlistProductIds.includes(product.productid);
 
-  // ⭐ Hiển thị modal
   const [showModal, setShowModal] = useState(false);
 
   const handleOpenWishlist = (e: React.MouseEvent) => {
-    e.preventDefault(); // không cho click vào Link
+    e.preventDefault();
     setShowModal(true);
   };
 
+  const API_DOMAIN = "http://localhost:8000";  
+
+  const rawImage =
+    product.images?.[0] ||
+    product.thumbnail ||
+    "/media/products/default.jpg";
+
+  // Nếu đường dẫn bắt đầu bằng "/" → Thêm domain
+  const imageSrc =
+    rawImage.startsWith("/")
+      ? `${API_DOMAIN}${rawImage}`
+      : rawImage;
+
+  // -----------------------------
   const displayPrice = product.sale_price || product.price || "N/A";
-  const originalPrice = product.price ? `$${product.price}` : null;
   const isOnSale = product.sale_price && product.sale_price < product.price;
-
-  const getRatingStars = (rating: number) => {
-    const full = Math.floor(rating);
-    return "★".repeat(full) + "☆".repeat(5 - full);
-  };
-
-  const ratingStars = getRatingStars(product.avg_rating || 0);
-  const lowestCategory = product.category?.category_name || "Uncategorized";
 
   const formatVND = (value: number | string | null) => {
     if (!value) return "N/A";
@@ -48,9 +47,13 @@ export default function ProductCard({ product }: Props) {
     });
   };
 
+  const getRatingStars = (rating: number) => {
+    const full = Math.floor(rating);
+    return "★".repeat(full) + "☆".repeat(5 - full);
+  };
+
   return (
     <>
-      {/* ⭐ Popup Wishlist */}
       {showModal && (
         <WishlistModal
           productId={product.productid}
@@ -60,6 +63,8 @@ export default function ProductCard({ product }: Props) {
 
       <Link href={`/products/${product.productid}`} className="block">
         <div className="border rounded-lg shadow-sm p-4 hover:shadow-md transition flex flex-col h-full">
+
+          {/* Image */}
           <div className="relative">
             <Image
               src={imageSrc}
@@ -69,7 +74,6 @@ export default function ProductCard({ product }: Props) {
               className="rounded object-cover w-full h-48"
             />
 
-            {/* ⭐ Nút Trái Tim */}
             <button
               className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md"
               onClick={handleOpenWishlist}
@@ -82,24 +86,22 @@ export default function ProductCard({ product }: Props) {
             </button>
           </div>
 
-          {/* Category */}
-          <p className="text-xs text-gray-500 mt-1 italic">{lowestCategory}</p>
+          <p className="text-xs text-gray-500 mt-1 italic">
+            {product.category?.category_name || "Uncategorized"}
+          </p>
 
-          {/* Brand */}
           <h3 className="mt-2 text-lg font-semibold text-gray-800 line-clamp-1">
             {product.brand_name}
           </h3>
 
-          {/* Product name */}
           <p className="text-sm font-medium text-gray-700 line-clamp-2 min-h-[40px]">
             {product.product_name}
           </p>
 
-          {/* Giá */}
           <div className="mt-auto">
-            {isOnSale && originalPrice && (
+            {isOnSale && (
               <p className="text-sm text-red-400 line-through">
-                {formatVND(originalPrice)}
+                {formatVND(product.price)}
               </p>
             )}
             <p className="text-lg font-semibold text-gray-900">
@@ -107,16 +109,15 @@ export default function ProductCard({ product }: Props) {
             </p>
           </div>
 
-          {/* Đánh giá */}
           <div className="mt-1 flex items-center text-xs text-gray-500">
-            {product.reviews_count && product.reviews_count > 0 ? (
+            {typeof product.reviews_count === "number" && product.reviews_count > 0 ? (
               <>
                 <span>{product.reviews_count} Lượt đánh giá</span>
-                {product.avg_rating ? (
+                {typeof product.avg_rating === "number" && (
                   <span className="ml-2 text-yellow-500">
-                    {ratingStars}
+                    {getRatingStars(product.avg_rating)}
                   </span>
-                ) : null}
+                )}
               </>
             ) : (
               <span>Chưa có đánh giá</span>

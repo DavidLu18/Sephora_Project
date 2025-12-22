@@ -5,6 +5,7 @@ from .admin_views import (
     AdminProductViewSet,
     upload_product_image,
     delete_product_image,
+    delete_product_image_by_product,
 )
 # Tạo router cho các viewsets
 router = DefaultRouter()
@@ -22,6 +23,7 @@ urlpatterns = [
 
     path("admin/products/upload-image/", upload_product_image),
     path("admin/products/images/<int:image_id>/delete/", delete_product_image),
+    path("admin/products/<int:product_id>/image/", delete_product_image_by_product),
     # Các URL của các viewset đã đăng ký
     path('', include(router.urls)),
 ]

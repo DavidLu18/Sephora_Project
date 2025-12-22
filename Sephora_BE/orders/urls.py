@@ -8,7 +8,8 @@ from .admin_views import (
     admin_bulk_update_orders,
     admin_bulk_delete_orders,
     admin_update_order,
-    admin_check_order
+    admin_check_order,
+    admin_order_issue
 )
 
 router = DefaultRouter()
@@ -24,5 +25,6 @@ urlpatterns = [
     path("admin/orders/bulk-delete/", admin_bulk_delete_orders),
     # path("admin/orders/<int:id>/", admin_update_order),
     path("admin/orders/check/", admin_check_order),
+    path("admin/issue/", admin_order_issue, name="admin_order_issue"),
 ]
 urlpatterns += router.urls

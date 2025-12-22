@@ -70,17 +70,17 @@ export default function MultiOrderInventoryModal({
                   <th className="py-2 px-3 text-left">Trạng thái</th>
                 </tr>
               </thead>
-              <tbody>
-                {order.items.map((item) => (
-                  <tr key={item.product_name} className="border-t border-white/10">
+             <tbody>
+                {order.items.map((item, index) => (
+                  <tr key={index} className="border-t border-white/10">
                     <td className="py-2 px-3">{item.product_name}</td>
                     <td className="py-2 px-3">{item.required}</td>
                     <td className="py-2 px-3">{item.stock}</td>
                     <td className="py-2 px-3">
                       {item.status === "OK" ? (
-                        <span className="text-green-400"> Đủ</span>
+                        <span className="text-green-400">Đủ</span>
                       ) : (
-                        <span className="text-red-400"> Thiếu</span>
+                        <span className="text-red-400">Thiếu</span>
                       )}
                     </td>
                   </tr>
@@ -106,8 +106,8 @@ export default function MultiOrderInventoryModal({
                 </tr>
               </thead>
               <tbody>
-                {data.combined.map((item) => (
-                  <tr key={item.product_name} className="border-t border-white/10">
+                {data.combined.map((item, index) => (
+                  <tr key={index} className="border-t border-white/10">
                     <td className="py-2 px-3">{item.product_name}</td>
                     <td className="py-2 px-3">{item.total_required}</td>
                     <td className="py-2 px-3">{item.stock}</td>

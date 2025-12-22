@@ -267,7 +267,7 @@ class CartViewSet(viewsets.ViewSet):
                 voucher.used_count = (voucher.used_count or 0) + 1
                 voucher.save()
 
-            items.delete()
+            
 
             return Response(
                 {"message": "Đặt hàng COD thành công", "order_id": order.orderid},

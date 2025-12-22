@@ -26,18 +26,18 @@ const ReviewPage = () => {
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
-  // ✅ Mount guard
+  //  Mount guard
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // ✅ Lấy token sau khi đã mounted (tránh SSR mismatch)
+  //  Lấy token sau khi đã mounted (tránh SSR mismatch)
   useEffect(() => {
     if (!mounted) return;
     setToken(localStorage.getItem("token"));
   }, [mounted]);
 
-  // ✅ Lấy thông tin sản phẩm (sau khi mounted)
+  //  Lấy thông tin sản phẩm (sau khi mounted)
   useEffect(() => {
     if (!mounted || !productId) return;
     (async () => {
@@ -52,7 +52,7 @@ const ReviewPage = () => {
     })();
   }, [mounted, productId]);
 
-  // ✅ Nếu là edit => load review cũ (chỉ khi đã có token)
+  //  Nếu là edit => load review cũ (chỉ khi đã có token)
   useEffect(() => {
     if (!mounted || !isEdit || !reviewId || !token) return;
     (async () => {
@@ -121,7 +121,7 @@ const ReviewPage = () => {
     }
   };
 
-  // ✅ Chỉ chặn render sau khi đã mounted (sau tất cả hooks ở trên)
+  //  Chỉ chặn render sau khi đã mounted (sau tất cả hooks ở trên)
   if (!mounted) return null;
 
   return (

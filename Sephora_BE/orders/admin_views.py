@@ -5,8 +5,8 @@ from rest_framework.decorators import api_view
 from .models import Orders, OrderItems
 from products.models import Product
 from .serializers_admin import AdminOrderSerializer
-
-
+from notifications.models import NotificationGlobal, NotificationUser
+from users.models import User
 class AdminOrderViewSet(viewsets.ModelViewSet):
     queryset = Orders.objects.all().order_by('-createdat')
     serializer_class = AdminOrderSerializer
@@ -130,7 +130,7 @@ def admin_bulk_delete_orders(request):
 @api_view(['PATCH'])
 def admin_update_order(request, id):
         try:
-            order = Orders.objects.get(id=id)
+            order = Orders.objects.get(orderid=id)
         except Orders.DoesNotExist:
             return Response({"error": "Not found"}, status=404)
 
@@ -151,7 +151,7 @@ def admin_check_order(request):
 
     results = []
     all_ok = True
-    combined_required = {}  # 🔥 tổng số cần cho mỗi productid
+    combined_required = {}  
 
     #Lặp từng đơn
     for oid in order_ids:
@@ -237,3 +237,30 @@ def admin_check_order(request):
     })
 
 
+
+@api_view(["POST"])
+def admin_order_issue(request):
+    order_ids = request.data.get("order_ids", [])
+    reason = request.data.get("reason", "")
+
+    if not order_ids or not reason:
+        return Response({"message": "Thiếu order_ids hoặc reason"}, status=400)
+
+    orders = Orders.objects.filter(orderid__in=order_ids)
+
+    for o in orders:
+        o.status = "cancelled"
+        o.save()
+
+        # Lấy ra user instance
+        user_obj = User.objects.filter(userid=o.userid).first()
+
+        if user_obj:
+            NotificationUser.objects.create(
+                user=user_obj,
+                title="Đơn hàng gặp sự cố",
+                message=f"Đơn #{o.orderid} đã bị hủy do: {reason}",
+                type="order_issue"
+            )
+
+    return Response({"message": "Đã xử lý sự cố và gửi thông báo!"})

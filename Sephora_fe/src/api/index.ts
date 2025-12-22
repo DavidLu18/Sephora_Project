@@ -3,7 +3,7 @@ import { Product } from "@/types/product"
 import { Category } from "@/types/category"
 // import { auth } from "@/lib/firebase"; // Import Firebase Authentication
 import {  CartItem } from "@/types/cart";
-import { Order } from "@/types/order";
+import { Order, CancelOrderPayload  } from "@/types/order";
 import { Brand } from "@/types/brand";
 import { ProductQuestion, ProductAnswer } from "@/types/qa";
 import { Address } from "@/types/address";
@@ -15,11 +15,8 @@ export const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 // Hàm fetchAPI để gửi token vào header
 export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem("token");
-
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -28,7 +25,9 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     headers,
     credentials: "include",
   });
+
   const data = await response.json().catch(() => null);
+
   if (!response.ok) {
     throw {
       status: response.status,
@@ -38,6 +37,7 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
   return data;
 }
+
 
 
 // Lấy danh sách sản phẩm mới
@@ -307,27 +307,30 @@ export const checkoutCart = async (
   paymentMethod: string,
   addressId: number | null,
   token?: string,
-  voucherCode?: string | null
+  voucherCode?: string | null,
+  selectedItems?: number[]      // <--- THÊM DÒNG NÀY
 ) => {
-  const response = await fetch('http://localhost:8000/api/cart/checkout/', {
-    method: 'POST',
+  const response = await fetch("http://localhost:8000/api/cart/checkout/", {
+    method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       payment_method: paymentMethod,
-      address_id: addressId,  
+      address_id: addressId,
       voucher_code: voucherCode || null,
+      cart_item_ids: selectedItems || [],   // <--- GỬI LÊN BE
     }),
   });
 
   if (!response.ok) {
-    throw new Error('Không thể thanh toán giỏ hàng');
+    throw new Error("Không thể thanh toán giỏ hàng");
   }
 
   return response.json();
 };
+
 
 
 // Cập nhật số lượng sản phẩm trong giỏ hàng
@@ -339,13 +342,14 @@ export async function updateCartQuantity(itemId: number, quantity: number): Prom
 }
 
 
-export const cancelOrder = async (orderId: number, token: string) => {
+export const cancelOrder = async (orderId: number, token: string, body: CancelOrderPayload) => {
   const response = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/cancel/`, {  // Gọi đúng URL
     method: 'PATCH',  // PATCH để hủy đơn hàng
     headers: {
       'Authorization': `Bearer ${token}`,  // Thêm token vào header
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -457,11 +461,17 @@ export async function markQuestionHelpful(questionId: number, token?: string): P
 
 // Lấy danh sách địa chỉ của user
 export async function getAddresses(): Promise<Address[]> {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Chưa đăng nhập");
+
   return fetchAPI("/address/", {
     method: "GET",
-    credentials: "include",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 }
+
 
 // Tạo địa chỉ mới
 export async function createAddress(data: {
@@ -587,33 +597,55 @@ export async function getAvailableVouchers(token: string): Promise<Voucher[]> {
   );
 }
 
-export async function getWishlists(token: string) {
+export async function getWishlists() {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Chưa đăng nhập");
+
   return fetchAPI(`/wishlists/`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 }
 
-export async function toggleHeart(productId: number, token: string) {
+
+export async function toggleHeart(productId: number) {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Chưa đăng nhập");
+
   return fetchAPI(`/wishlists/toggle-heart/`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ product_id: productId }),
-    headers: { Authorization: `Bearer ${token}` },
   });
 }
 
-export async function addToWishlist(wishlistId: number, productId: number, token: string) {
+
+export async function addToWishlist(wishlistId: number, productId: number) {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Chưa đăng nhập");
+
   return fetchAPI(`/wishlists/${wishlistId}/add-item/`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ product_id: productId }),
-    headers: { Authorization: `Bearer ${token}` },
   });
 }
 
-export async function removeFromWishlist(wishlistId: number, productId: number, token: string) {
+export async function removeFromWishlist(wishlistId: number, productId: number) {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Chưa đăng nhập");
+
   return fetchAPI(`/wishlists/${wishlistId}/remove-item/`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ product_id: productId }),
-    headers: { Authorization: `Bearer ${token}` },
   });
 }
 

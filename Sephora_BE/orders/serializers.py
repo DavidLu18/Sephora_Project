@@ -11,6 +11,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product_image = serializers.SerializerMethodField()
     user_review = serializers.SerializerMethodField()
     phone_number = serializers.CharField(required=False)
+    product_image = serializers.SerializerMethodField()
+
     class Meta:
         model = OrderItems
         fields = [
@@ -24,8 +26,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'category_name',
             'product_image',
             "phone_number",
-            'user_review'
-
+            'user_review',
+            "product_image",
         ]
 
     def get_user_review(self, obj):
@@ -47,7 +49,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         if not review:
             return None
 
-        # ✅ Xử lý ảnh review an toàn (tránh lỗi .all)
+        #  Xử lý ảnh review an toàn (tránh lỗi .all)
         images = []
         if hasattr(review, "review_images"):
             field_value = review.review_images
@@ -76,7 +78,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         """Lấy product tương ứng theo productid"""
         if not obj.productid:
             return None
-        return Product.objects.filter(productid=obj.productid).select_related('brand', 'category').first()
+        return Product.objects.filter(productid=obj.productid).select_related('brand', 'category').prefetch_related("images").first()
 
     def get_product_name(self, obj):
         product = self.get_product(obj)
@@ -96,9 +98,17 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     def get_product_image(self, obj):
         product = self.get_product(obj)
-        if product and hasattr(product, "product_image") and product.product_image:
-            return product.product_image.url
-        return None
+        if not product:
+            return "/media/products/default.jpg"
+
+        # Lấy ảnh đầu tiên từ related_name='images'
+        first_img = product.images.first()
+        if first_img and first_img.image_url:
+            return first_img.image_url  # ví dụ: "/media/products/P473671.jpg" hoặc URL full
+
+        # Không có ảnh nào → fallback
+        return "/media/products/default.jpg"
+
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -117,6 +127,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'createdat',
             'updatedat',
             'items',
+            "cancel_reason",
         ]
 
     def get_items(self, obj):

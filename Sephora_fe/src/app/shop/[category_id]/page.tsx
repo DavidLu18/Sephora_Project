@@ -25,7 +25,6 @@ export default function CategoryPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [brands, setBrands] = useState<Brand[]>([])
   // const [categories] = useState<Category[]>([]) // nếu cần truyền cho sidebar
   const [loading, setLoading] = useState(true)
@@ -150,6 +149,124 @@ export default function CategoryPage() {
       <section className="flex-1">
         {filteredProducts.length > 0 ? (
           <>
+          {/* Các bộ lọc đang áp dụng */}
+          {(filters.brands.length > 0 ||
+            filters.sortBy ||
+            filters.rating ||
+            filters.minPrice ||
+            filters.maxPrice) && (
+            <div className="flex flex-wrap gap-2 items-center mb-6 text-sm">
+
+              {/* Rating */}
+              {filters.rating && (
+                <span className="flex items-center gap-1 bg-gray-100 border px-3 py-1 rounded-full">
+                  {filters.rating}★ trở lên
+                  <button
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, rating: null }))
+                    }
+                    className="ml-1 text-gray-500 hover:text-black"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {/* Sort = sale */}
+              {filters.sortBy === "sale" && (
+                <span className="flex items-center gap-1 bg-gray-100 border px-3 py-1 rounded-full">
+                  Sale
+                  <button
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, sortBy: "" }))
+                    }
+                    className="ml-1 text-gray-500 hover:text-black"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {/* Sort theo giá/tên */}
+              {(filters.sortBy === "price-asc" ||
+                filters.sortBy === "price-desc" ||
+                filters.sortBy === "name-asc" ||
+                filters.sortBy === "name-desc") && (
+                <span className="flex items-center gap-1 bg-gray-100 border px-3 py-1 rounded-full">
+                  {filters.sortBy}
+                  <button
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, sortBy: "" }))
+                    }
+                    className="ml-1 text-gray-500 hover:text-black"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {/* Giá */}
+              {(filters.minPrice !== null || filters.maxPrice !== null) && (
+                <span className="flex items-center gap-1 bg-gray-100 border px-3 py-1 rounded-full">
+                  {filters.minPrice ?? "Min"} - {filters.maxPrice ?? "Max"}
+                  <button
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        minPrice: null,
+                        maxPrice: null,
+                      }))
+                    }
+                    className="ml-1 text-gray-500 hover:text-black"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {/* Brand */}
+              {filters.brands.map((id) => {
+                const brand = brands.find((b) => b.brand_id === id)
+                if (!brand) return null
+                return (
+                  <span
+                    key={id}
+                    className="flex items-center gap-1 bg-gray-100 border px-3 py-1 rounded-full"
+                  >
+                    {brand.brand_name}
+                    <button
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          brands: prev.brands.filter((b) => b !== id),
+                        }))
+                      }
+                      className="ml-1 text-gray-500 hover:text-black"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )
+              })}
+
+              {/* Xoá tất cả */}
+              <button
+                onClick={() =>
+                  setFilters({
+                    categoryId: category_id,
+                    minPrice: null,
+                    maxPrice: null,
+                    sortBy: "",
+                    brands: [],
+                    rating: null,
+                  })
+                }
+                className="text-blue-600 hover:underline ml-2"
+              >
+                Xóa tất cả
+              </button>
+            </div>
+          )}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
               {filteredProducts.map((p) => (
                 <ProductCard key={p.productid} product={p} />

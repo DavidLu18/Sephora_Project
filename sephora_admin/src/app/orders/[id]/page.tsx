@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   getAdminOrderDetail,
-  updateAdminOrderStatus,
+  // updateAdminOrderStatus,
 } from "@/api/orders";
 import { AdminOrder } from "@/types/orders";
-
+import { formatVND } from "@/utils/format";
+import AutoImage from "@/components/AutoImage";
 export default function OrderDetail() {
   const { id } = useParams();
   const [order, setOrder] = useState<AdminOrder | null>(null);
@@ -16,13 +17,13 @@ export default function OrderDetail() {
     getAdminOrderDetail(Number(id)).then(setOrder);
   }, [id]);
 
-  const changeStatus = async (s: string) => {
-    const updated = await updateAdminOrderStatus(Number(id), s);
-    setOrder(updated);
-  };
+  // const changeStatus = async (s: string) => {
+  //   const updated = await updateAdminOrderStatus(Number(id), s);
+  //   setOrder(updated);
+  // };
 
   if (!order) return <p className="text-gray-400">Loading...</p>;
-
+  
   return (
     <div className="space-y-10">
 
@@ -44,29 +45,47 @@ export default function OrderDetail() {
         {/* TOTAL PRICE */}
         <div className="bg-[#111] border border-white/10 p-6 rounded-2xl shadow-md">
           <h3 className="text-gray-400 mb-1">Tổng tiền</h3>
-          <p className="text-xl font-bold text-pink-500">{order.total}đ</p>
+          <p className="text-xl font-bold text-pink-500">{formatVND(order.total)}</p>
+
+          {/* Voucher Info */}
+          <div className="mt-4 space-y-1">
+            <p className="text-sm text-gray-400">
+              Voucher sử dụng:{" "}
+              <span className="text-white">
+                {order.voucher?.voucher_code || "Không có"}
+              </span>
+            </p>
+
+            {order.voucher && (
+              <>
+                <p className="text-sm text-gray-400">
+                  Loại giảm giá:{" "}
+                  <span className="text-white">
+                    {order.voucher.discount_type === "percent"
+                      ? `Giảm ${order.voucher.discount_value}%`
+                      : `Giảm ${order.voucher.discount_value}đ`}
+                  </span>
+                </p>
+
+                <p className="text-sm text-green-400">
+                  Số tiền đã giảm: -{formatVND(order.voucher.discount_amount)}
+                </p>
+
+                <p className="text-sm text-gray-400">
+                  Thời gian áp dụng:{" "}
+                  <span className="text-white">
+                    {order.voucher.used_time
+                      ? new Date(order.voucher.used_time).toLocaleString("vi-VN")
+                      : "—"}
+                  </span>
+                </p>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* STATUS */}
-        <div className="bg-[#111] border border-white/10 p-6 rounded-2xl shadow-md">
-          <h3 className="text-gray-400 mb-1">Trạng thái đơn</h3>
 
-          <select
-            value={order.status}
-            onChange={(e) => changeStatus(e.target.value)}
-            className="
-              mt-2 w-full
-              bg-[#1a1a1a] border border-white/10 
-              text-gray-200 px-4 py-2 rounded-lg focus:outline-none
-              focus:border-pink-600 transition
-            "
-          >
-            <option value="pending">Chờ xử lý</option>
-            <option value="shipping">Đang vận chuyển</option>
-            <option value="delivered">Đã nhận hàng</option>
-            <option value="cancelled">Đã hủy</option>
-          </select>
-        </div>
+        
 
       </div>
 
@@ -113,21 +132,31 @@ export default function OrderDetail() {
               className="flex items-center justify-between border-b border-white/10 pb-5"
             >
 
+            <div className="flex items-center justify-between  border-white/10 pb-5">
+
+              {/* LEFT: Image + product info */}
               <div className="flex items-center gap-4">
 
-                <div className="w-16 h-16 rounded-lg bg-[#1a1a1a] border border-white/10 flex items-center justify-center text-gray-500">
-                  IMG
-                </div>
+                {/* IMAGE */}
+                <AutoImage
+                  src={item.image}
+                  alt={item.product_name}
+                  width={64}
+                  height={64}
+                  className="w-16 h-16 object-cover rounded-lg border border-white/10"
+                />
 
+                {/* PRODUCT INFO */}
                 <div>
                   <p className="font-medium text-white">{item.product_name}</p>
                   <p className="text-gray-400 text-sm">Số lượng: {item.quantity}</p>
                 </div>
-
               </div>
 
+          </div>
+
               <p className="text-pink-400 font-semibold text-lg">
-                {item.price}đ
+                {formatVND(item.price)}
               </p>
             </div>
           ))}

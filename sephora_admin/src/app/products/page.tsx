@@ -74,6 +74,11 @@ export default function ProductsPage() {
 
     return result;
   };
+  const buildImageUrl = (path?: string | null) => {
+    if (!path) return "http://localhost:8000/media/products/default.jpg" ;     // fallback  
+    if (path.startsWith("http")) return path;
+    return `${"http://localhost:8000"}${path}`;
+  };
   const categoryOptions = flattenCategories(categories).map((c) => ({
     id: c.id,
     label: `${"— ".repeat(c.level)}${c.name}`,
@@ -175,11 +180,10 @@ export default function ProductsPage() {
         {/* STATUS FILTER (multi checkbox) */}
         <div className="flex items-center gap-3">
           {[
-            { key: "exclusive", label: "Exclusive" },
-            { key: "online", label: "Online Only" },
-            { key: "outofstock", label: "Out of Stock" },
-            { key: "limited", label: "Limited Edition" },
-            { key: "new", label: "New" },
+            
+            { key: "online", label: "Chỉ Online" },
+            { key: "outofstock", label: "Hết hàng" },           
+            { key: "new", label: "Mới" },
           ].map((st) => (
             <label key={st.key} className="text-xs text-gray-300 flex items-center gap-1">
               <input
@@ -265,18 +269,15 @@ export default function ProductsPage() {
                   <td className="p-3">
                     <div className="h-14 w-14 rounded-lg overflow-hidden border border-gray-700 bg-gray-900">
                         {(() => {
-                        const imageSrc =
-                            item.thumbnail && item.thumbnail.trim() !== ""
-                            ? item.thumbnail
-                            : "/products/pro2.jpg"; // fallback an toàn
-                        console.log("THUMBNAIL:", item.thumbnail);
+                        const imageSrc = buildImageUrl(item.thumbnail || item.images?.[0]);// fallback an toàn
+                        
                         return (
                             <Image
-                            src={imageSrc}
-                            alt={item.product_name}
-                            width={56}
-                            height={56}
-                            className="object-cover"
+                              src={imageSrc}
+                              alt={item.product_name}
+                              width={56}
+                              height={56}
+                              className="object-cover"
                             />
                         );
                         })()}

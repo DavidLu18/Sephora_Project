@@ -1,6 +1,19 @@
 from rest_framework import serializers
-from .models import ProductReview
+from .models import ProductReview, ReviewImage
 from users.models import User
+
+class ReviewImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReviewImage
+        fields = ["image"]
+
+    def get_image(self, obj):
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(obj.image.url)
+        return obj.image.url
 
 class ProductReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
@@ -11,6 +24,11 @@ class ProductReviewSerializer(serializers.ModelSerializer):
         read_only=True,
         format="%Y-%m-%dT%H:%M:%S.%fZ"  #   chuẩn ISO để JS hiểu
     )
+    images = ReviewImageSerializer(many=True, read_only=True)
+
+    # legacy (chuỗi) – CHỈ đọc, không ghi
+    review_images = serializers.CharField(read_only=True)
+    review_videos = serializers.CharField(read_only=True)
     class Meta:
         model = ProductReview
         fields = [
@@ -22,6 +40,13 @@ class ProductReviewSerializer(serializers.ModelSerializer):
             "rating",
             "is_recommended",
             "review_text",
+            # ảnh mới
+            "images",
+
+            # ảnh cũ
+            "review_images",
+            "review_videos",
+            
             "review_title",
             "review_images",
             "review_videos",
@@ -61,3 +86,4 @@ class ProductReviewSerializer(serializers.ModelSerializer):
             instance.review_images.split(",") if instance.review_images else []
         )
         return data
+    

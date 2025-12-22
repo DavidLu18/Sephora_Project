@@ -67,3 +67,9 @@ export const checkAdminOrders = async (orderIds: number[]) => {
   });
 };
 
+export async function markOrderIssue(orderIds: number[], reason: string) {
+  return fetchJSON(`/api/orders/admin/issue/`, {
+    method: "POST",
+    body: JSON.stringify({ order_ids: orderIds, reason }),
+  });
+}

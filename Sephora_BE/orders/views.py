@@ -70,6 +70,13 @@ def cancel_order(request, order_id):
     API hủy đơn hàng.
     """
     # Lấy UID từ FirebaseUser
+    ALLOWED_CANCEL_REASONS = [
+        "Đặt nhầm sản phẩm",
+        "Không còn nhu cầu mua sản phẩm này",
+        "Thay đổi thông tin giao hàng",
+        "Thay đổi phương thức thanh toán",
+        "Khác",
+    ]
     user_uid = getattr(request.user, "uid", None)
     if not user_uid:
         return Response({"error": "Không xác định được người dùng."}, status=status.HTTP_401_UNAUTHORIZED)
@@ -90,11 +97,33 @@ def cancel_order(request, order_id):
     if order.status != "pending":
         return Response({"error": "Không thể hủy đơn hàng. Đơn hàng không có trạng thái 'pending'."}, status=status.HTTP_400_BAD_REQUEST)
 
+    reason = request.data.get("reason", "").strip()
+    custom_reason = request.data.get("custom_reason", "").strip()
+    # Kiểm tra lựa chọn reason hợp lệ
+    if reason not in ALLOWED_CANCEL_REASONS:
+        return Response(
+            {"error": "Lý do hủy không hợp lệ."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    # Nếu chọn "Khác" thì phải nhập custom_reason
+    if reason == "Khác":
+        if not custom_reason:
+            return Response(
+                {"error": "Vui lòng nhập lý do chi tiết khi chọn 'Khác'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        final_reason = f"Khác: {custom_reason}"
+    else:
+        final_reason = reason
     # Hủy đơn hàng
     order.status = "cancelled"
+    order.cancel_reason = final_reason
     order.save()
 
-    return Response({"message": "Đơn hàng đã được hủy."}, status=status.HTTP_200_OK)
+    return Response(
+        {"message": "Đơn hàng đã được hủy thành công.", "cancel_reason": final_reason},
+        status=status.HTTP_200_OK
+    )
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])

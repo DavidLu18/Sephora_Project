@@ -1,7 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { ThumbsUp, Check } from "lucide-react";
-
+import Image from "next/image";
+interface ReviewImage {
+  image: string;
+}
 interface Review {
   reviewid: number;
   user_name: string;
@@ -11,12 +14,13 @@ interface Review {
   is_recommended?: boolean;
   helpful_count: number;
   created_at: string;
+  images?: ReviewImage[]; 
 }
 
 const ReviewList = ({ productId }: { productId: number }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [page, setPage] = useState(1);
-
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   useEffect(() => {
     fetch(`http://127.0.0.1:8000/api/products/${productId}/reviews/?page=${page}`)
       .then((res) => res.json())
@@ -40,7 +44,7 @@ const ReviewList = ({ productId }: { productId: number }) => {
 
   return (
     <div className="mt-10">
-      {/* 🔹 DANH SÁCH REVIEW */}
+      {/*  DANH SÁCH REVIEW */}
       <div className="space-y-10">
         {reviews.map((r) => (
           <div
@@ -75,6 +79,24 @@ const ReviewList = ({ productId }: { productId: number }) => {
               <p className="text-gray-700 text-sm mb-3 leading-relaxed">
                 {r.review_text}
               </p>
+                {/* Nếu review có hình thì hiển thị */}
+                {r.images && r.images.length > 0 && (
+                  <div className="flex gap-2 mb-3 flex-wrap">
+                    {r.images.map((img, idx) => (
+                      <div key={idx} className="relative w-24 h-24">
+                        <Image
+                          src={img.image}
+                          alt={`review-image-${idx}`}
+                          fill
+                          className="object-cover rounded border cursor-pointer hover:opacity-80"
+                          sizes="96px"
+                          onClick={() => setPreviewImage(img.image)} // mở popup
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              
 
               <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
                 <button
@@ -97,7 +119,7 @@ const ReviewList = ({ productId }: { productId: number }) => {
         ))}
       </div>
 
-      {/* 🔹 PHÂN TRANG */}
+      {/*  PHÂN TRANG */}
       <div className="flex items-center justify-center gap-4 mt-8 pb-10">
         <button
           disabled={page <= 1}
@@ -114,6 +136,33 @@ const ReviewList = ({ productId }: { productId: number }) => {
           {">"}
         </button>
       </div>
+      {previewImage && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setPreviewImage(null)} // click nền để đóng
+        >
+          <div
+            className="relative max-w-[90%] max-h-[90%]"
+            onClick={(e) => e.stopPropagation()} // tránh đóng popup khi click ảnh
+          >
+            {/* Nút đóng */}
+            <button
+              className="absolute top-2 right-2 bg-black/60 text-white rounded-full px-3 py-1"
+              onClick={() => setPreviewImage(null)}
+            >
+              ✕
+            </button>
+
+            <Image
+              src={previewImage}
+              alt="Preview"
+              width={900}
+              height={900}
+              className="object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -15,7 +15,10 @@ export interface Product {
   reviews_count?: number
   highlight?: string[] 
   category?: Category
+  images?: string[]
+  thumbnail?: string
   image_url?: string
+  ingredients?: string
 }
 export interface ProductReview {
   reviewid: number

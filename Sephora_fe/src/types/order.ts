@@ -35,3 +35,8 @@ export interface Order {
   updatedat: string;
   items: OrderItem[];
 }
+
+export interface CancelOrderPayload {
+  reason: string;         // 1 trong 5 lựa chọn
+  custom_reason?: string; // chỉ có khi reason === "Khác"
+}

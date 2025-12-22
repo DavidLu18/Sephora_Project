@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .models import ProductReview
+from .models import ProductReview,ReviewImage
 from .serializers import ProductReviewSerializer
 from orders.models import Orders, OrderItems
 from users.models import User 
@@ -28,71 +28,69 @@ class ProductReviewListCreate(generics.ListCreateAPIView):
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    from .models import ReviewImage   # thêm import
+
     def perform_create(self, serializer):
         """Tạo review mới (chỉ cho phép khi user đã mua sản phẩm)"""
         firebase_user = getattr(self.request, "user", None)
-        #   Kiểm tra user Firebase
+
         if not firebase_user or not getattr(firebase_user, "uid", None):
             raise PermissionError("Unauthorized")
+
         try:
             user = User.objects.get(firebase_uid=firebase_user.uid)
         except UserModel.DoesNotExist:
-            raise PermissionError("Không tìm thấy người dùng trong hệ thống. Vui lòng đăng nhập lại.")
+            raise PermissionError("Không tìm thấy người dùng.")
 
         product_id = self.kwargs.get("product_id")
-        print("product_id:", product_id)
         if not product_id:
             raise ValueError("Thiếu product_id trong URL")
 
-        #   Bắt buộc phải có rating
         rating = self.request.data.get("rating")
-        print("  rating:", rating)
         if not rating:
             raise ValueError("Bạn phải chọn số sao để đánh giá sản phẩm!")
 
-        #   Review text có thể để trống
-        review_text = self.request.data.get("review_text", "").strip()
-        print("review_text:", review_text)
-        if not review_text:
-            print("  Người dùng chỉ đánh giá sao, không nhập nhận xét")
-
-        #   Lấy danh sách đơn hàng của user
+        # Kiểm tra đã mua + chưa review
         user_orders = Orders.objects.filter(
-            userid=user.userid,  #   Nếu Orders.userid lưu Firebase UID → đổi thành userid=user.firebase_uid
+            userid=user.userid,
             status__in=["paid", "delivered"]
         ).values_list("orderid", flat=True)
-        print("  found orders:", list(user_orders))
 
-        #   Kiểm tra sản phẩm có nằm trong các đơn hàng này không
         has_purchased = OrderItems.objects.filter(
             orderid__in=user_orders,
             productid=product_id
         ).exists()
-        print("  has_purchased:", has_purchased)
 
         if not has_purchased:
             raise PermissionError("Bạn chỉ có thể đánh giá sản phẩm sau khi đã mua.")
 
-        #   Ngăn người dùng review trùng
         already_reviewed = ProductReview.objects.filter(
             product_id=product_id,
             userid=user.userid
         ).exists()
-        print("  has_purchased:", has_purchased)
 
         if already_reviewed:
             raise PermissionError("Bạn đã đánh giá sản phẩm này rồi.")
 
-        #  Nếu hợp lệ thì tạo review
+        # Tạo bản ghi review
         product_obj = Product.objects.get(productid=product_id)
-        if "submission_time" in serializer.validated_data:
-            serializer.validated_data.pop("submission_time")
+        review = serializer.save(userid=user.userid, product=product_obj)
 
-        serializer.save(userid=user.userid, product=product_obj)
-        print("== SQL query vừa chạy ==")
-        for q in connection.queries[-3:]:
-            print(q["sql"])
-        # Cập nhật lại avg_rating và review_count trong schema sephora_recommendation
+        # ----------------------------
+        # 🔥 XỬ LÝ UPLOAD ẢNH REVIEW
+        # ----------------------------
+
+        images = self.request.FILES.getlist("review_images")  # nhận nhiều file
+
+        for img in images:
+            ReviewImage.objects.create(
+                review=review,
+                image=img  # Django tự lưu file vào upload_to
+            )
+
+        # ----------------------------
+
+        # Cập nhật avg_rating trong bảng recommendation
         with connection.cursor() as cursor:
             cursor.execute("""
                 UPDATE sephora_recommendation.products AS p
@@ -112,7 +110,7 @@ class ProductReviewListCreate(generics.ListCreateAPIView):
                 AND p.productid = %s;
             """, [product_id])
 
-        print(f"Đã lưu review & cập nhật avg_rating cho sản phẩm {product_id}")
+        print(f"Đã lưu review + ảnh + cập nhật rating cho sản phẩm {product_id}")
 
 
 

@@ -13,7 +13,9 @@ import {
 } from "@/api/orders";
 import InventoryModal, { MultiOrderInventoryResult  } from "@/components/InventoryModal";
 import ConfirmModal from "@/components/ConfirmModal";
-
+import { formatVND } from "@/utils/format";
+import IssueModal from "@/components/IssueModal";
+import { markOrderIssue } from "@/api/orders";
 export default function OrdersPage() {
     const [orders, setOrders] = useState<AdminOrder[]>([]);
     const [search, setSearch] = useState("");
@@ -29,6 +31,8 @@ export default function OrdersPage() {
     const [confirmTitle, setConfirmTitle] = useState("");
     const [confirmMessage, setConfirmMessage] = useState("");
     const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+    const [issueModalOpen, setShowIssueModal] = useState(false);
+    
     const resetFilters = () => {
         setSearch("");
         setStatusFilter("");
@@ -164,7 +168,27 @@ export default function OrdersPage() {
   };
 
 
+  const handleIssueSubmit = async (reason: string) => {
+    try {
+      await markOrderIssue(selectedOrders, reason);
 
+      // cập nhật UI
+      const updated = orders.map(o =>
+        selectedOrders.includes(o.orderid)
+          ? { ...o, status: "cancelled" }
+          : o
+      );
+
+      setOrders(updated);
+      setSelectedOrders([]);
+      setShowIssueModal(false);
+
+      alert("Đã cập nhật sự cố và gửi thông báo!");
+    } catch (error) {
+      console.error(error);
+      alert("Lỗi khi gửi thông báo sự cố!");
+    }
+  };
 
 
   // === FILTER ===
@@ -310,10 +334,11 @@ export default function OrdersPage() {
           px-4 py-2 rounded-lg focus:outline-none focus:border-pink-600
         "
         >
-          <option value="">All Payments</option>
+          <option value="">Tất cả phương thức</option>
           <option value="COD">COD</option>
-          <option value="Thanh toán khi nhận hàng">
-            Thanh toán khi nhận hàng
+          <option value="VNPAY">
+          
+            VNPAY
           </option>
         </select>
 
@@ -340,7 +365,7 @@ export default function OrdersPage() {
       </div>
       {selectedOrders.length > 0 && (
         <div className="flex items-center gap-3 mt-4">
-
+          
           {canDelete && (
             <button
               onClick={handleDeleteClick}
@@ -364,6 +389,12 @@ export default function OrdersPage() {
             className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg"
           >
             Kiểm tra đơn
+          </button>
+          <button
+            onClick={() => setShowIssueModal(true)}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          >
+            Báo sự cố
           </button>
           <span className="text-gray-400 text-sm">
             ({selectedOrders.length} đơn được chọn)
@@ -402,6 +433,7 @@ export default function OrdersPage() {
                 <th className="py-4 px-6 text-left">Tổng tiền</th>
                 <th className="py-4 px-6 text-left">Thanh toán</th>
                 <th className="py-4 px-6 text-left">Trạng thái</th>
+                <th className="py-4 px-6 text-left">Hành động</th>
                 <th className="py-4 px-6"></th>
             </tr>
             </thead>
@@ -436,17 +468,29 @@ export default function OrdersPage() {
                 </td>
 
                 <td className="py-5 px-6">
-                    <p className="font-semibold text-white">{o.user_email}</p>
-                    <p className="text-xs text-gray-400">Địa chỉ: (fetch sau)</p>
+                  {/* Email */}
+                  <p className="font-semibold text-white">{o.user_email}</p>
+
+                  {/* Số điện thoại */}
+                  <p className="text-xs text-gray-400">
+                    SĐT: {o.phone  || "Không có"}
+                  </p>
+
+                  {/* Địa chỉ */}
+                  <p className="text-xs text-gray-400 leading-tight">
+                    {o.address
+                      ? `${o.address.street || ""}, ${o.address.district || ""}, ${o.address.city}, ${o.address.country}`
+                      : "Không có địa chỉ"}
+                  </p>
                 </td>
 
                 <td className="py-5 px-6">
                     <p className="font-semibold text-gray-200">{o.items?.length} sản phẩm</p>
-                    <p className="text-xs text-gray-400">(chi tiết sản phẩm)</p>
+                    <p className="text-xs text-gray-400"></p>
                 </td>
 
                 <td className="py-5 px-6 font-semibold text-gray-100">
-                    {o.total}đ
+                    {formatVND(o.total)}
                 </td>
 
                 <td className="py-5 px-6 text-gray-300">
@@ -500,6 +544,12 @@ export default function OrdersPage() {
           onConfirm={confirmAction}
           title={confirmTitle}
           message={confirmMessage}
+          
+        />
+        <IssueModal
+          open={issueModalOpen}
+          onClose={() => setShowIssueModal(false)}
+          onSubmit={handleIssueSubmit}
         />
     </div>  
   ); 

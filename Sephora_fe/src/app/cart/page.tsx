@@ -10,7 +10,7 @@ import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Voucher } from "@/types/voucher";
-
+import { getProductImage } from "@/lib/getProductImage";
 const formatVND = (value: number | string | null | undefined) => {
   if (value == null) return "N/A";
   const num = Number(value);
@@ -39,10 +39,10 @@ export default function CartPage() {
   } | null>(null);
   const [voucherMessage, setVoucherMessage] = useState<string | null>(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
-
-  
   const [voucherList, setVoucherList] = useState<Voucher[]>([]);
 
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -53,6 +53,20 @@ export default function CartPage() {
 
           const res = await getCart(token); 
           setCart(res);
+          const buyNow = localStorage.getItem("buyNow");
+
+          if (buyNow) {
+            const target = res.items.find((i: CartItem) => 
+              i.product.productid === Number(buyNow)
+            );
+            if (target) {
+              setSelectedItems([target.cartitemid]);  // chỉ chọn sản phẩm mua ngay
+            }
+            localStorage.removeItem("buyNow");
+          } else {
+            // mặc định chọn tất cả sản phẩm
+            setSelectedItems(res.items.map((i: CartItem) => i.cartitemid));
+          }
 
           const profile = await getUserProfile(token);
           setUserProfile(profile);
@@ -93,7 +107,7 @@ export default function CartPage() {
     setVoucherMessage(null);
     setVoucherCode("");
   }, [cart]);
-
+  
   const handleRemove = async (itemId: number) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -105,6 +119,10 @@ export default function CartPage() {
   };
 
   const handleCheckout = async () => {
+    if (selectedItems.length === 0) {
+      alert("Bạn chưa chọn sản phẩm nào để thanh toán.");
+      return;
+    }
     const token = localStorage.getItem("token");
     if (!token) {
       alert("Bạn chưa đăng nhập!");
@@ -128,7 +146,8 @@ export default function CartPage() {
         selectedPayment,
         selectedAddress,
         token,
-        voucherInfo?.code || null
+        voucherInfo?.code || null,
+        selectedItems        // <--- gửi danh sách cartitemid xuống BE
       );
 
       // Nếu backend trả lỗi
@@ -221,11 +240,12 @@ export default function CartPage() {
   if (!userReady) return <div className="p-10 text-center">Vui lòng đăng nhập để xem giỏ hàng.</div>;
   if (!cart || !cart.items?.length) return <div className="p-10 text-center">Giỏ hàng trống.</div>;
 
-  const total = cart.items.reduce((sum, i) => {
-    const price =
-      typeof i.product.price === "string"
-        ? parseFloat(i.product.price)
-        : i.product.price || 0;
+  const total = cart.items
+  .filter(i => selectedItems.includes(i.cartitemid))
+  .reduce((sum, i) => {
+    const price = typeof i.product.price === "string"
+      ? parseFloat(i.product.price)
+      : i.product.price || 0;
     return sum + price * i.quantity;
   }, 0);
   
@@ -242,8 +262,28 @@ export default function CartPage() {
             <div className="flex items-center gap-2 px-4 py-3 border-b"> 
               <h2 className="font-semibold text-lg">Giao hàng tận nhà ({cart.items.length})</h2>
             </div>
+            
             <div className="p-4 text-sm text-gray-600 border-b">
-              Thành viên nhận <span className="text-red-500 font-medium">miễn phí giao hàng tiêu chuẩn</span> cho mọi đơn.
+              Tất cả khách hàng điều được <span className="text-red-500 font-medium">miễn phí giao hàng tiêu chuẩn</span> cho mọi đơn.
+            </div>
+            
+            {/* Chọn tất cả */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b bg-gray-50">
+              <input
+                type="checkbox"
+                checked={selectedItems.length === cart.items.length}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    // Chọn tất cả
+                    setSelectedItems(cart.items.map((i: CartItem) => i.cartitemid));
+                  } else {
+                    // Bỏ chọn tất cả
+                    setSelectedItems([]);
+                  }
+                }}
+                className="w-5 h-5"
+              />
+              <span className="text-sm text-gray-700">Chọn tất cả sản phẩm</span>
             </div>
 
             {cart.items.map((item: CartItem, index: number) => (
@@ -251,9 +291,23 @@ export default function CartPage() {
                 key={item.cartitemid}
                 className={`flex flex-col md:flex-row gap-6 px-4 py-6 ${index < cart.items.length - 1 ? "border-b border-gray-200" : ""}`}
               >
+                <input
+                  type="checkbox"
+                  checked={selectedItems.includes(item.cartitemid)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedItems(prev => [...prev, item.cartitemid]);
+                    } else {
+                      setSelectedItems(prev =>
+                        prev.filter(id => id !== item.cartitemid)
+                      );
+                    }
+                  }}
+                  className="w-5 h-5 mt-2"
+                />
                 <Link href={`/products/${item.product.productid}`} className="flex-shrink-0 hover:opacity-80 transition">
                   <Image
-                    src={item.product.image_url || "/products/pro2.jpg"}
+                    src={getProductImage(item.product)}
                     alt={item.product.product_name}
                     width={130}
                     height={130}

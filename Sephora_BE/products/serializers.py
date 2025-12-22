@@ -55,7 +55,7 @@ class ProductSerializer(serializers.ModelSerializer):
     # thêm:
     images = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
-
+    image_url = serializers.SerializerMethodField()
     class Meta:
         model = Product
         fields = [
@@ -93,6 +93,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
             "images",
             "thumbnail",
+            "image_url",
         ]
 
     # --- highlight ---
@@ -131,4 +132,20 @@ class ProductSerializer(serializers.ModelSerializer):
 
         # Nếu có request → trả absolute URL
         return request.build_absolute_uri(default_url)
+    def get_image_url(self, obj):
+        request = self.context.get("request")
+        first = obj.images.first()
+
+        # Nếu product có ảnh
+        if first and first.image_url:
+            # Nếu đã có request => trả absolute URL
+            if request:
+                return request.build_absolute_uri(first.image_url)
+            return first.image_url
+
+        # fallback default
+        default_url = "/media/products/default.jpg"
+        if request:
+            return request.build_absolute_uri(default_url)
+        return default_url
 

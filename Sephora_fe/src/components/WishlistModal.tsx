@@ -64,7 +64,7 @@ export default function WishlistModal({
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="text-lg font-semibold mb-3">My Lists</h2>
+        <h2 className="text-lg font-semibold mb-3">Danh sách của tôi</h2>
 
         <div className="space-y-4 max-h-64 overflow-y-auto">
           {lists.map((list) => {
@@ -80,7 +80,7 @@ export default function WishlistModal({
                 <div>
                   <p className="font-medium">{list.name}</p>
                   <p className="text-sm text-gray-500">
-                    {list.items.length} items
+                    {list.items.length} sản phẩm
                   </p>
                 </div>
 
@@ -89,14 +89,14 @@ export default function WishlistModal({
                     className="text-red-500 underline"
                     onClick={() => handleRemove(list.wishlistid)}
                   >
-                    Remove
+                    Xóa
                   </button>
                 ) : (
                   <button
                     className="text-blue-600 underline"
                     onClick={() => handleAdd(list.wishlistid)}
                   >
-                    Add
+                    Thêm
                   </button>
                 )}
               </div>
@@ -108,14 +108,14 @@ export default function WishlistModal({
           <input
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
-            placeholder="New list name…"
+            placeholder="Tên danh sách mới..."
             className="border p-2 flex-1 rounded"
           />
           <button
             onClick={handleCreate}
             className="px-3 py-2 bg-black text-white rounded-lg"
           >
-            Create
+            Tạo mới
           </button>
         </div>
 
@@ -123,7 +123,7 @@ export default function WishlistModal({
           className="mt-4 w-full bg-gray-800 text-white py-2 rounded-lg"
           onClick={onClose}
         >
-          Done
+          Xong
         </button>
       </div>
     </div>

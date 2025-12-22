@@ -32,7 +32,7 @@ export default function MyListsPage() {
     }
 
     try {
-      const res: Wishlist[] = await getWishlists(token);
+      const res: Wishlist[] = await getWishlists();
       setLists(res);
     } catch (err) {
       console.error("Failed to load wishlists:", err);

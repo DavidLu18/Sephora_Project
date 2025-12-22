@@ -190,10 +190,10 @@ export default function ProductSidebarFilter({
                 {section.key === "price" && (
                   <div className="space-y-2">
                     {[
-                      { label: "Under $25", min: 0, max: 25 },
-                      { label: "$25 to $50", min: 25, max: 50 },
-                      { label: "$50 to $100", min: 50, max: 100 },
-                      { label: "$100 and above", min: 100, max: null },
+                      { label: "Dưới 500.000 đ", min: 0, max: 500000 },
+                      { label: "500.000 đ đến 1.000.000 đ", min: 500000, max: 1000000 },
+                      { label: "1.000.000 đ đến 3.000.000 đ", min: 1000000, max: 3000000 },
+                      { label: "Trên 3.000.000 đ", min: 3000000, max: null },
                     ].map((range) => (
                       <label key={range.label} className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -217,7 +217,7 @@ export default function ProductSidebarFilter({
                     <div className="flex gap-2 mt-2">
                       <input
                         type="number"
-                        placeholder="$ Min"
+                        placeholder="Tối thiểu"
                         className="w-1/2 border rounded p-1 text-xs"
                         value={filters.minPrice ?? ""}
                         onChange={(e) =>
@@ -229,7 +229,7 @@ export default function ProductSidebarFilter({
                       />
                       <input
                         type="number"
-                        placeholder="$ Max"
+                        placeholder="Tối đa"
                         className="w-1/2 border rounded p-1 text-xs"
                         value={filters.maxPrice ?? ""}
                         onChange={(e) =>

@@ -16,54 +16,16 @@ export default function EditProductPage() {
 
   const router = useRouter();
 
-  const [product, setProduct] = useState<ProductFormData | null>(null);
+  // PRODUCT là loại dữ liệu trả về từ API
+  const [product, setProduct] = useState<Product | null>(null);
   const [images, setImages] = useState<File[]>([]);
-
-  /** MAP API → FORM DATA */
-  function mapProductToForm(data: Product): ProductFormData {
-    return {
-      product_name: data.product_name,
-      sku: data.sku,
-
-      price: data.price ? Number(data.price) : null,
-      sale_price: data.sale_price ? Number(data.sale_price) : null,
-      value_price: data.value_price ? Number(data.value_price) : null,
-
-      stock: data.stock ?? null,
-
-      brand_id: data.brand_id ?? null,
-
-      category_id: data.category?.category_id ?? null,
-
-      size: data.size ?? "",
-
-      highlight: Array.isArray(data.highlight)
-        ? data.highlight.join(", ")
-        : "",
-
-      description: data.description ?? "",
-      ingredients: data.ingredients ?? "",
-      skin_types: data.skin_types ?? "",
-
-      is_exclusive: data.is_exclusive ?? false,
-      online_only: data.online_only ?? false,
-      out_of_stock: data.out_of_stock ?? false,
-      is_limited_edition: data.is_limited_edition ?? false,
-      is_new: data.is_new ?? true,
-
-      currency: data.currency ?? "VND",
-
-      images: data.images ?? [],
-      thumbnail: data.thumbnail ?? null,
-    };
-  }
 
   /** FETCH PRODUCT */
   useEffect(() => {
     if (!id || isNaN(id)) return;
 
     getProductById(id).then((data: Product) => {
-      setProduct(mapProductToForm(data));
+      setProduct(data);
     });
   }, [id]);
 
@@ -76,6 +38,7 @@ export default function EditProductPage() {
         await uploadProductImage(id, img);
       }
     }
+
     alert("Cập nhật sản phẩm thành công!");
     router.push("/products");
   };
@@ -87,7 +50,7 @@ export default function EditProductPage() {
       <h1 className="text-xl mb-4">Chỉnh sửa sản phẩm</h1>
 
       <ProductForm
-        initialData={product}
+        initialData={product}   
         onSubmit={handleSubmit}
         setImages={setImages}
       />

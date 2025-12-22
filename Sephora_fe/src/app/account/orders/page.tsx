@@ -14,15 +14,26 @@
     { key: 'delivered', label: 'Đã giao' },
     { key: 'cancelled', label: 'Đã hủy' },
   ];
-
+  const CANCEL_REASONS  = [
+        "Đặt nhầm sản phẩm",
+        "Không còn nhu cầu mua sản phẩm này",
+        "Thay đổi thông tin giao hàng",
+        "Thay đổi phương thức thanh toán",
+        "Khác",
+    ]
   export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [userReady, setUserReady] = useState(false);
     const [activeTab, setActiveTab] = useState('pending');
     
-    const router = useRouter();
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
+    const [selectedReason, setSelectedReason] = useState("");
+    const [customReason, setCustomReason] = useState("");
 
+    const router = useRouter();
+    
     useEffect(() => {
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -89,8 +100,9 @@
       }
     };
 
-    const handleCancelOrder = async (orderId: number) => {
+    const handleCancelOrder = async () => {
       try {
+        if (!cancelOrderId) return;
         // Lấy token từ localStorage
         const token = localStorage.getItem('token') || undefined; // Nếu token là null thì sẽ chuyển thành undefined
 
@@ -98,17 +110,36 @@
           alert("Vui lòng đăng nhập để thực hiện hành động này.");
           return;  // Nếu không có token, dừng lại và không thực hiện hành động
         }
+        if (!selectedReason) {
+          alert("Vui lòng chọn lý do hủy.");
+          return;
+        }
 
+        // Nếu chọn Khác thì phải nhập chi tiết
+        if (selectedReason === "Khác" && !customReason.trim()) {
+          alert("Vui lòng nhập lý do chi tiết.");
+          return;
+        }
         // Gọi API hủy đơn hàng
-        const response = await cancelOrder(orderId, token);
+         try {
+          const res = await cancelOrder(cancelOrderId, token, {
+            reason: selectedReason,
+            custom_reason: selectedReason === "Khác" ? customReason : ""
+          });
 
-        if (response.message === "Đơn hàng đã được hủy.") {
-          // Cập nhật danh sách đơn hàng sau khi hủy (xóa đơn hàng khỏi state)
-          setOrders(prevOrders => prevOrders.map(order => 
-            order.orderid === orderId ? { ...order, status: 'cancelled' } : order
-          )); // Cập nhật trạng thái 'cancelled'
-          alert("Đơn hàng đã được hủy!");
-        } else {
+          if (res.message) {
+            setOrders(prev =>
+              prev.map(o =>
+                o.orderid === cancelOrderId ? { ...o, status: "cancelled" } : o
+              )
+            );
+            alert("Đơn hàng đã được hủy!");
+            setShowCancelModal(false);
+            setSelectedReason("");
+            setCustomReason("");
+          }
+        } catch (err) {
+          console.error(err);
           alert("Không thể hủy đơn hàng.");
         }
       } catch (error) {
@@ -124,10 +155,86 @@
         currency: "VND",
       });
     };
+    const API_DOMAIN = "http://127.0.0.1:8000"; // hoặc "http://localhost:8000"
+
+    function getOrderItemImage(productImage?: string | null): string {
+      // Nếu có đường dẫn ảnh hợp lệ
+      const raw =
+        productImage && productImage.trim() !== ""
+          ? productImage
+          : "/media/products/default.jpg";
+
+      // Nếu đã là URL đầy đủ (http/https) thì trả luôn
+      if (raw.startsWith("http://") || raw.startsWith("https://")) {
+        return raw;
+      }
+
+      // Nếu là path kiểu "/media/..." thì ghép domain
+      if (raw.startsWith("/")) {
+        return `${API_DOMAIN}${raw}`;
+      }
+
+      // Trường hợp hiếm khi BE trả "media/..." không có "/"
+      return `${API_DOMAIN}/${raw}`;
+    }
+
     if (loading) return <div className="p-10 text-center">Đang tải lịch sử đơn hàng...</div>;
     if (!userReady) return <div className="p-10 text-center">Vui lòng đăng nhập để xem lịch sử đơn hàng.</div>;
-
+    {/* Popup hủy đơn */}
+    
     return (
+      <>
+      {/* Modal chọn lý do hủy */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex justify-center items-center z-50">
+          <div className="bg-white w-full max-w-md rounded-lg shadow-xl p-6">
+            <h2 className="text-lg font-semibold mb-4">Lý do hủy đơn hàng</h2>
+
+            <div className="space-y-3">
+              {CANCEL_REASONS.map((reason) => (
+                <label key={reason} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={selectedReason === reason}
+                    onChange={() => setSelectedReason(reason)}
+                  />
+                  {reason}
+                </label>
+              ))}
+
+              {selectedReason === "Khác" && (
+                <textarea
+                  className="w-full border rounded-md p-2 text-sm"
+                  placeholder="Nhập lý do chi tiết..."
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                />
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-5">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setSelectedReason("");
+                  setCustomReason("");
+                }}
+                className="px-4 py-2 bg-gray-200 rounded-md"
+              >
+                Đóng
+              </button>
+
+              <button
+                onClick={handleCancelOrder}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+              >
+                Xác nhận hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MAIN PAGE */}
       <div className="max-w-6xl mx-auto py-10 px-4">
         <h1 className="text-2xl font-semibold mb-6">Lịch sử đơn hàng</h1>
 
@@ -190,7 +297,7 @@
                       >
                         {/* Hình ảnh sản phẩm */}
                         <Image
-                          src={item.product_image || "/products/pro2.jpg"}
+                          src={getOrderItemImage(item.product_image)}
                           alt={item.product_name || "Sản phẩm"}
                           width={80}
                           height={80}
@@ -271,7 +378,10 @@
                   <div className="flex gap-3">
                     {(order.status === 'pending') && (
                       <button
-                        onClick={() => handleCancelOrder(order.orderid)}
+                        onClick={() => {
+                          setCancelOrderId(order.orderid);
+                          setShowCancelModal(true);
+                        }}
                         className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
                       >
                         Hủy đơn
@@ -292,5 +402,6 @@
           </div>
         )}
       </div>
+      </>
     );
   }

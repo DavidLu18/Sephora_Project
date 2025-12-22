@@ -37,7 +37,7 @@ export default function ProductDetail() {
   const { wishlistProductIds } = useWishlist();
   const liked = product ? wishlistProductIds.includes(product.productid) : false;
   const [showWishlistModal, setShowWishlistModal] = useState(false);
-
+  const API_DOMAIN = "http://localhost:8000";
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -89,7 +89,18 @@ export default function ProductDetail() {
     );
   }
 
-  const gallery = ["/products/pro2.jpg"];
+  // Lấy danh sách ảnh đúng từ API
+  const rawImages =
+    product.images?.length && product.images.length > 0
+      ? product.images
+      : product.thumbnail
+      ? [product.thumbnail]
+      : ["/media/products/default.jpg"];
+
+  // Ghép domain nếu ảnh BE trả về dạng "/media/...”
+  const gallery = rawImages.map((img) =>
+    img.startsWith("/") ? `${API_DOMAIN}${img}` : img
+  );
   const price =
     typeof product.price === "string"
       ? parseFloat(product.price)
@@ -175,13 +186,15 @@ export default function ProductDetail() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {/* LEFT: IMAGE */}  
           <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="relative w-full">
+            <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden">
               <Image
                 src={gallery[currentImage]}
                 alt={product.product_name || "Product Image"}
-                width={500}
-                height={500}
-                className="rounded-xl object-cover w-full h-auto transition-all duration-300"
+                fill
+                sizes="(max-width: 768px) 100vw, 500px"
+                className="rounded-xl object-cover  transition-all duration-300"
+                
+                priority
               />
               {gallery.length > 1 && (
                 <>
@@ -291,6 +304,35 @@ export default function ProductDetail() {
                   Thêm vào Giỏ hàng
                 </span>
               </button>
+              {/* MUA NGAY */}
+              <button
+                onClick={async () => {
+                  if (!product) return;
+                  if (!selectedSize && sizes.length > 0) {
+                    alert("Vui lòng chọn kích thước!");
+                    return;
+                  }
+
+                  try {
+                    // Thêm vào giỏ
+                    await addToCart(product.productid, quantity);
+
+                    // Đánh dấu "mua ngay"
+                    localStorage.setItem("buyNow", String(product.productid));
+
+                    // Điều hướng sang giỏ hàng
+                    window.location.href = "/cart";
+                  } catch (error) {
+                    console.error("Lỗi mua ngay:", error);
+                    alert("Không thể mua ngay. Vui lòng thử lại!");
+                  }
+                }}
+                className="flex flex-col justify-center items-center w-full bg-black text-white py-3 rounded-xl shadow-md hover:bg-gray-900 hover:scale-[1.02] transition-all duration-200"
+              >
+                <span className="font-semibold text-base tracking-wide">
+                  Mua ngay
+                </span>
+              </button>
             </div>
 
             <p className="text-sm text-gray-600 mt-1">
@@ -318,8 +360,25 @@ export default function ProductDetail() {
         {/* Expandable Sections */} 
         <div className="mt-10 border-t pt-6 space-y-4"> 
           <details className="group border-b pb-4"> 
-            <summary className="flex justify-between items-center cursor-pointer font-semibold text-gray-800"> Thành phần <span className="transition-transform group-open:rotate-180">⌄</span> 
-              </summary> 
+            <summary className="flex justify-between items-center cursor-pointer font-semibold text-gray-800"> 
+              Thành phần 
+              <span className="transition-transform group-open:rotate-180">
+                ⌄
+              </span> 
+            </summary> 
+            <div className="mt-3 text-sm text-gray-600 leading-relaxed">
+              {product.ingredients ? (
+                <ul className="mt-3 list-disc list-inside text-sm text-gray-600 space-y-1">
+                  {product.ingredients.split(",").map((item, index) => (
+                    <li key={index}>{item.trim()}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-gray-400 italic">
+                  Thông tin thành phần đang được cập nhật.
+                </p>
+              )}
+            </div>
           </details> 
           <details className="group border-b pb-4"> 
             <summary className="flex justify-between items-center cursor-pointer font-semibold text-gray-800"> Hướng dẫn sử dụng <span className="transition-transform group-open:rotate-180">⌄</span> 

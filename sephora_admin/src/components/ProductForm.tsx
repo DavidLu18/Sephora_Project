@@ -8,9 +8,10 @@ import { getBrands } from "@/api/brands";
 import { getCategories } from "@/api/categories";
 import DropdownSearch from "./DropdownSearch";
 import Image from "next/image";
+import { Product } from "@/types/product";
 
 interface Props {
-  initialData?: ProductFormData;
+  initialData?: Partial<Product>;
   onSubmit: (data: ProductFormData) => void;
   setImages?: (files: File[]) => void;
 }
@@ -20,9 +21,17 @@ interface FlatCategory {
   name: string;
   level: number;
 }
+function isValidImageUrl(url: string | null): boolean {
+    if (!url) return false;
+    if (url.trim() === "") return false;
+    if (url === "null" || url === "undefined") return false;
+    if (url.endsWith("/") || url.endsWith("products")) return false;
+    if (!url.includes(".")) return false; // phải có .jpg, .png...
+    return true;
+  }
+export default function ProductForm({ initialData, onSubmit }: Props) {
+  const productId = initialData?.productid ?? 0;
 
-export default function ProductForm({ initialData, onSubmit, setImages }: Props) {
-  //  Form khởi tạo giống bản cũ của bạn
   const [form, setForm] = useState<ProductFormData>(() => ({
     product_name: initialData?.product_name ?? "",
     sku: initialData?.sku ?? "",
@@ -31,21 +40,29 @@ export default function ProductForm({ initialData, onSubmit, setImages }: Props)
     value_price: initialData?.value_price ?? null,
     stock: initialData?.stock ?? null,
     brand_id: initialData?.brand_id ?? null,
-    category_id: initialData?.category_id ?? null,
+    category_id: initialData?.category?.category_id ?? null,
     size: initialData?.size ?? "",
-    highlight: initialData?.highlight ?? "",
+
+    highlight: Array.isArray(initialData?.highlight)
+      ? initialData.highlight.join(", ")
+      : initialData?.highlight ?? "",
+
     description: initialData?.description ?? "",
     ingredients: initialData?.ingredients ?? "",
     skin_types: initialData?.skin_types ?? "",
+
     is_exclusive: initialData?.is_exclusive ?? false,
     online_only: initialData?.online_only ?? false,
     out_of_stock: initialData?.out_of_stock ?? false,
     is_limited_edition: initialData?.is_limited_edition ?? false,
     is_new: initialData?.is_new ?? true,
+
     currency: initialData?.currency ?? "VND",
     images: initialData?.images ?? [],
   }));
 
+  
+  
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -62,11 +79,9 @@ export default function ProductForm({ initialData, onSubmit, setImages }: Props)
 
     // Nếu API có images array
     if (Array.isArray(initialData.images) && initialData.images.length > 0) {
-      imgs = initialData.images.map((img: string) =>
-        img.startsWith("http")
-          ? img
-          : `${process.env.NEXT_PUBLIC_BASE_URL}${img}`
-      );
+      imgs = initialData.images
+      .map(img => img.startsWith("http") ? img : `http://localhost:8000${img}`)
+      .filter(img => isValidImageUrl(img));
     }
 
     // Nếu không có images nhưng có thumbnail
@@ -74,7 +89,7 @@ export default function ProductForm({ initialData, onSubmit, setImages }: Props)
       imgs = [
         initialData.thumbnail.startsWith("http")
           ? initialData.thumbnail
-          : `${process.env.NEXT_PUBLIC_BASE_URL}${initialData.thumbnail}`
+          : `http://localhost:8000${initialData.thumbnail}`,
       ];
     }
 
@@ -124,15 +139,7 @@ export default function ProductForm({ initialData, onSubmit, setImages }: Props)
     setForm((prev) => ({ ...prev, [name]: checked }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
 
-    const files = Array.from(e.target.files);
-    if (setImages) setImages(files);
-
-    const previews = files.map((file) => URL.createObjectURL(file));
-    setPreviewImages((prev) => [...prev, ...previews]);
-  };
 
   const cleanNumber = (
     value: string | number | null | undefined
@@ -221,33 +228,23 @@ export default function ProductForm({ initialData, onSubmit, setImages }: Props)
           </div>
         </Section>
 
+        {productId > 0 && (
         <Section title="Hình ảnh">
-          <p className="font-medium text-gray-200">Thêm hình</p>
+          <ProductImageField
+            productId={productId}
+            initialUrl={previewImages[0] ?? null}
+            onImageChange={(url) => {
+                setPreviewImages(url ? [url] : []);
 
-          <div className="flex gap-4">
-            {previewImages.length < 5 && (
-              <label className="w-28 h-28 flex items-center justify-center bg-[#f5f5f5] hover:bg-gray-200 rounded-lg border border-gray-300 cursor-pointer text-black text-4xl font-light transition">
-                +
-                <input type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
-              </label>
-            )}
-
-            {previewImages.length > 0 &&
-              previewImages.map((src, idx) => (
-                <div key={idx} className="relative w-28 h-28 rounded-lg overflow-hidden border border-gray-700">
-                  <Image src={src} alt={`preview-${idx}`} fill className="object-cover" />
-                  
-                  <button
-                    type="button"
-                    onClick={() => setPreviewImages((prev) => prev.filter((_, i) => i !== idx))}
-                    className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white px-2 py-1 text-xs rounded"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-          </div>
+                // ép ProductForm re-render → ép initialUrl cập nhật
+                setForm((prev) => ({
+                    ...prev,
+                    images: url ? [url] : []
+                }));
+            }}
+          />
         </Section>
+      )}
 
         <button className="w-full py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-medium">
           Lưu sản phẩm
@@ -258,6 +255,193 @@ export default function ProductForm({ initialData, onSubmit, setImages }: Props)
 }
 
 /* ---------------- COMPONENTS ---------------- */
+function ProductImageField({
+  productId,
+  initialUrl,
+  onImageChange,
+}: {
+  productId: number;
+  initialUrl: string | null;
+  onImageChange: (url: string | null) => void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(initialUrl);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // nếu initialUrl thay đổi (khi edit product), sync lại
+  useEffect(() => {
+  if (initialUrl) {
+    setPreviewUrl(initialUrl);
+  }
+}, [initialUrl]);
+
+  const handleUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append("product_id", String(productId));
+    formData.append("file", file);
+
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/admin/products/upload-image/`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!res.ok) {
+        console.error("Upload failed");
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      // BE trả về image_url (dạng /media/products/sku.jpg)
+      const fullUrl = data.image_url.startsWith("http")
+        ? data.image_url
+        : `http://localhost:8000${data.image_url}`;
+
+      const cacheBustedUrl = `${fullUrl}?t=${Date.now()}`;
+      onImageChange(cacheBustedUrl);
+      setPreviewUrl(cacheBustedUrl);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    void handleUpload(file);
+  };
+  
+
+  const handleDelete = async () => {
+    if (!previewUrl) return;
+    const ok = confirm("Bạn có chắc muốn xóa hình sản phẩm này?");
+    if (!ok) return;
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/admin/products/${productId}/image/`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!res.ok) {
+        console.error("Delete failed");
+        setLoading(false);
+        return;
+      }
+
+      setPreviewUrl(null);
+      onImageChange(null);
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {!isValidImageUrl(previewUrl) ? (
+        // Chưa có hình → dấu cộng
+        <label className="w-28 h-28 flex items-center justify-center bg-[#f5f5f5] hover:bg-gray-200 rounded-lg border border-gray-300 cursor-pointer text-black text-4xl font-light transition">
+          {loading ? "..." : "+"}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={onFileChange}
+            className="hidden"
+          />
+        </label>
+      ) : (
+        // Có hình → preview nhỏ, click mở to
+        <div
+          className="relative w-28 h-28 rounded-lg overflow-hidden border border-gray-700 cursor-pointer group"
+          onClick={() => setIsModalOpen(true)}
+        >
+          {isValidImageUrl(previewUrl) && (
+            <Image
+              src={previewUrl!}
+              alt="product-image"
+              fill
+              className="object-cover"
+            />
+          )}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition">
+            Nhấn để xem
+          </div>
+        </div>
+      )}
+
+      {/* Modal xem ảnh to + sửa + xóa */}
+      {isModalOpen && isValidImageUrl(previewUrl) &&(
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+          <div className="bg-[#111] rounded-xl p-4 max-w-xl w-full mx-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-white font-semibold text-sm">
+                Hình sản phẩm
+              </h3>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-white text-lg"
+                onClick={() => setIsModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="relative w-full aspect-4/3 mb-4 rounded-lg overflow-hidden border border-gray-700">
+              {previewUrl && isValidImageUrl(previewUrl) ? (
+                <Image
+                  src={previewUrl}
+                  alt="product-image-large"
+                  fill
+                  className="object-contain bg-black"
+                />
+              ) : (
+                <div className="w-full h-full bg-black flex items-center justify-center text-gray-400">
+                  Không có hình
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between gap-3">
+              {/* Đổi hình */}
+              <label className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg border border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white text-sm cursor-pointer transition">
+                {loading ? "Đang xử lý..." : "Đổi hình"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onFileChange}
+                  className="hidden"
+                />
+              </label>
+
+              {/* Xóa hình */}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 px-3 py-2 rounded-lg border border-red-500 text-red-500 hover:bg-red-500 hover:text-white text-sm transition disabled:opacity-50"
+              >
+                Xóa hình
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

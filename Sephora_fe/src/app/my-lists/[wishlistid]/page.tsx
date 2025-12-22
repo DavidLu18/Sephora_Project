@@ -28,7 +28,7 @@ export default function WishlistDetailPage() {
   const loadWishlist = useCallback(async () => {
     if (!token) return;
 
-    const lists: Wishlist[] = await getWishlists(token);
+    const lists: Wishlist[] = await getWishlists();
     const found = lists.find(
       (l) => l.wishlistid === Number(wishlistid)
     );

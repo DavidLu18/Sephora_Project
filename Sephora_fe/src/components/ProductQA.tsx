@@ -8,13 +8,13 @@ import {
   markQuestionHelpful,
 } from "@/api";
 
-// ⏰ Hàm hiển thị thời gian kiểu "x days ago"
+// Hàm hiển thị thời gian kiểu "x days ago"
 function timeAgo(dateString: string) {
   const date = new Date(dateString);
   const diff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff === 0) return "today";
-  if (diff === 1) return "1 day ago";
-  return `${diff} days ago`;
+  if (diff === 0) return "Hôm nay";
+  if (diff === 1) return "1 ngày trước";
+  return `${diff} ngày trước`;
 }
 
 export default function ProductQA({ productId }: { productId: number }) {
@@ -25,8 +25,9 @@ export default function ProductQA({ productId }: { productId: number }) {
   const [visibleCount, setVisibleCount] = useState(1); // mặc định hiển thị 1 câu hỏi
   const showStep = 4; // mỗi lần mở thêm 4 câu hỏi
   const [expandedAnswers, setExpandedAnswers] = useState<Record<number, boolean>>({});
-
-  // 🔄 Load câu hỏi từ API
+  const [replyToId, setReplyToId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+  // Load câu hỏi từ API
   useEffect(() => {
     const loadQuestions = async () => {
       setLoading(true);
@@ -67,8 +68,30 @@ export default function ProductQA({ productId }: { productId: number }) {
       console.error("Lỗi khi đánh dấu hữu ích:", error);
     }
   };
+  // Gửi câu trả lời
+  const handleSendAnswer = async (questionId: number) => {
+    if (!replyText.trim()) return;
 
-  // 🔽 Mở rộng/thu gọn câu trả lời
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/questions/${questionId}/answers/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: replyText }),
+      });
+
+      if (!res.ok) throw new Error("Lỗi trả lời câu hỏi");
+
+      const updated = await getQuestionsByProduct(productId);
+      setQuestions(updated);
+
+      setReplyText("");
+      setReplyToId(null);
+    } catch (err) {
+      console.error("Lỗi gửi trả lời:", err);
+      alert("Không thể gửi trả lời.");
+    }
+  };
+  // Mở rộng/thu gọn câu trả lời
   const toggleAnswers = (questionId: number) => {
     setExpandedAnswers((prev) => ({
       ...prev,
@@ -179,10 +202,42 @@ export default function ProductQA({ productId }: { productId: number }) {
                       Hữu ích? △
                     </button>
                     <span>({q.helpful_count || 0})</span>
-                    <button className="hover:underline text-blue-600">
+                    <button
+                      onClick={() =>
+                        setReplyToId((prev) => (prev === q.id ? null : q.id))
+                      }
+                      className="text-blue-600 hover:underline"
+                    >
                       Trả lời câu hỏi này.
                     </button>
                   </div>
+                  {/* FORM TRẢ LỜI */}
+                  {replyToId === q.id && (
+                    <div className="pl-5 mt-3">
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Nhập trả lời..."
+                        className="w-full border rounded-lg p-2 text-sm"
+                      />
+
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleSendAnswer(q.id)}
+                          className="px-4 py-1 bg-black text-white rounded-full text-sm"
+                        >
+                          Gửi
+                        </button>
+
+                        <button
+                          onClick={() => setReplyToId(null)}
+                          className="px-4 py-1 text-sm text-gray-500 hover:underline"
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
 

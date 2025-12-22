@@ -10,11 +10,11 @@ from products.models import Product
 
 
 # =========================
-# 📌 Danh sách + Tạo câu hỏi
+#  Danh sách + Tạo câu hỏi
 # =========================
 class ProductQuestionListCreate(generics.ListCreateAPIView):
     serializer_class = ProductQuestionSerializer
-    permission_classes = [permissions.AllowAny]  # 👈 Ai cũng có thể hỏi
+    permission_classes = [permissions.AllowAny]  #  Ai cũng có thể hỏi
 
     def get_queryset(self):
         product_id = self.kwargs['product_id']
@@ -35,11 +35,11 @@ class ProductQuestionListCreate(generics.ListCreateAPIView):
 
 
 # =========================
-# 📌 Danh sách + Tạo câu trả lời
+#  Danh sách + Tạo câu trả lời
 # =========================
 class ProductAnswerListCreate(generics.ListCreateAPIView):
     serializer_class = ProductAnswerSerializer
-    permission_classes = [permissions.AllowAny]  # 👈 Ai cũng có thể trả lời
+    permission_classes = [permissions.AllowAny]  #  Ai cũng có thể trả lời
 
     def get_queryset(self):
         return ProductAnswer.objects.filter(question_id=self.kwargs['question_id'])
@@ -59,10 +59,10 @@ class ProductAnswerListCreate(generics.ListCreateAPIView):
 
 
 # =========================
-# 📌 Toggle “Hữu ích” (ẩn danh)
+#  Toggle “Hữu ích” (ẩn danh)
 # =========================
 class QuestionHelpfulToggle(APIView):
-    permission_classes = [permissions.AllowAny]  # 👈 Ai cũng có thể bấm “Hữu ích”
+    permission_classes = [permissions.AllowAny]  #  Ai cũng có thể bấm “Hữu ích”
 
     def post(self, request, question_id):
         q = get_object_or_404(ProductQuestion, pk=question_id)

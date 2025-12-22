@@ -412,9 +412,11 @@ export default function Header() {
             <Heart
               className="w-5 h-5 cursor-pointer"
               onClick={() => {
-                  
-                    router.push("/my-lists");
-                  
+                  if (!userEmail) {
+                    setOpenMenu(openMenu === "wishlist" ? null : "wishlist");
+                    return;
+                  }
+                  router.push("/my-lists");
                 }}
             />
             {!userEmail && openMenu === "wishlist" && (

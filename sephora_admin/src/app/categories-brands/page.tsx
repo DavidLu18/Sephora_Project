@@ -244,7 +244,7 @@ export default function CategoriesBrandsPage() {
 
             {/* SORT */}
             <select
-                className="bg-black/20 px-3 py-2 border border-gray-700 rounded-lg text-sm"
+                className="px-3 py-2 bg-black border border-gray-700 rounded-lg text-sm"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortOption)}
             >
