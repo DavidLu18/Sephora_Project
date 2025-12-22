@@ -22,13 +22,18 @@ interface FlatCategory {
   level: number;
 }
 function isValidImageUrl(url: string | null): boolean {
-    if (!url) return false;
-    if (url.trim() === "") return false;
-    if (url === "null" || url === "undefined") return false;
-    if (url.endsWith("/") || url.endsWith("products")) return false;
-    if (!url.includes(".")) return false; // phải có .jpg, .png...
-    return true;
-  }
+  if (!url) return false;
+  if (url.trim() === "") return false;
+  if (url === "null" || url === "undefined") return false;
+
+
+  if (url.startsWith("blob:")) return true;
+
+
+  if (url.startsWith("http")) return true;
+
+  return false;
+}
 export default function ProductForm({ initialData, onSubmit }: Props) {
   const productId = initialData?.productid ?? 0;
 
@@ -66,6 +71,8 @@ export default function ProductForm({ initialData, onSubmit }: Props) {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [images, setImages] = useState<File[]>([]);
   //  Load Brands & Categories
   useEffect(() => {
     getBrands().then(setBrands);
@@ -220,31 +227,33 @@ export default function ProductForm({ initialData, onSubmit }: Props) {
           </select>
 
           <div className="grid grid-cols-1 gap-2 text-sm">
-            <Checkbox label="Exclusive" name="is_exclusive" checked={form.is_exclusive} onChange={handleCheckboxChange} />
-            <Checkbox label="Online Only" name="online_only" checked={form.online_only} onChange={handleCheckboxChange} />
-            <Checkbox label="Out of Stock" name="out_of_stock" checked={form.out_of_stock} onChange={handleCheckboxChange} />
-            <Checkbox label="Limited Edition" name="is_limited_edition" checked={form.is_limited_edition} onChange={handleCheckboxChange} />
-            <Checkbox label="New" name="is_new" checked={form.is_new} onChange={handleCheckboxChange} />
+            <Checkbox label="Ngưng bán" name="is_exclusive" checked={form.is_exclusive} onChange={handleCheckboxChange} />
+            <Checkbox label="Chỉ online" name="online_only" checked={form.online_only} onChange={handleCheckboxChange} />
+            <Checkbox label="Hết hàng" name="out_of_stock" checked={form.out_of_stock} onChange={handleCheckboxChange} />
+            <Checkbox label="Phiên bản giới hạn" name="is_limited_edition" checked={form.is_limited_edition} onChange={handleCheckboxChange} />
+            <Checkbox label="Mới" name="is_new" checked={form.is_new} onChange={handleCheckboxChange} />
           </div>
         </Section>
 
-        {productId > 0 && (
-        <Section title="Hình ảnh">
-          <ProductImageField
-            productId={productId}
-            initialUrl={previewImages[0] ?? null}
-            onImageChange={(url) => {
+          <Section title="Hình ảnh">
+            <ProductImageField
+              productId={productId}
+              initialUrl={previewImages[0] ?? null}
+              onImageChange={(url) => {
                 setPreviewImages(url ? [url] : []);
-
-                // ép ProductForm re-render → ép initialUrl cập nhật
                 setForm((prev) => ({
-                    ...prev,
-                    images: url ? [url] : []
+                  ...prev,
+                  images: url ? [url] : []
                 }));
-            }}
-          />
-        </Section>
-      )}
+              }}
+              onFileSelect={(file) => {
+                const files = file ? [file] : [];
+                setSelectedImages(files);
+                setImages?.(files); // 🔥 ĐẨY FILE LÊN CreateProductPage
+              }}
+            />
+          </Section>
+
 
         <button className="w-full py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-medium">
           Lưu sản phẩm
@@ -259,21 +268,20 @@ function ProductImageField({
   productId,
   initialUrl,
   onImageChange,
+  onFileSelect,
 }: {
   productId: number;
   initialUrl: string | null;
   onImageChange: (url: string | null) => void;
+  onFileSelect?: (file: File | null) => void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(initialUrl);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // nếu initialUrl thay đổi (khi edit product), sync lại
   useEffect(() => {
-  if (initialUrl) {
-    setPreviewUrl(initialUrl);
-  }
-}, [initialUrl]);
+    if (initialUrl) setPreviewUrl(initialUrl);
+  }, [initialUrl]);
 
   const handleUpload = async (file: File) => {
     const formData = new FormData();
@@ -282,22 +290,17 @@ function ProductImageField({
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `http://localhost:8000/api/admin/products/upload-image/`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const res = await fetch("http://localhost:8000/api/admin/products/upload-image/", {
+        method: "POST",
+        body: formData,
+      });
 
       if (!res.ok) {
         console.error("Upload failed");
-        setLoading(false);
         return;
       }
 
-      const data = await res.json();
-      // BE trả về image_url (dạng /media/products/sku.jpg)
+      const data: { image_url: string } = await res.json();
       const fullUrl = data.image_url.startsWith("http")
         ? data.image_url
         : `http://localhost:8000${data.image_url}`;
@@ -315,31 +318,51 @@ function ProductImageField({
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    void handleUpload(file);
+
+    // ✅ luôn preview để user thấy ngay trên 1 trang
+    setPreviewUrl(URL.createObjectURL(file));
+
+    // ✅ lưu file lên cha để khi bấm "Lưu sản phẩm" thì upload (create flow)
+    onFileSelect?.(file);
+
+    // ✅ nếu đang UPDATE (đã có productId) thì upload ngay như cũ
+    if (productId > 0) {
+      void handleUpload(file);
+    } else {
+      // create: chưa có productId, không upload ngay
+      // onImageChange để null hoặc giữ nguyên tuỳ bạn; mình để null để khỏi “nhầm” là đã upload
+      onImageChange(null);
+    }
   };
-  
 
   const handleDelete = async () => {
+    // create (productId=0): chỉ xoá preview + xoá file đã chọn
+    if (productId <= 0) {
+      setPreviewUrl(null);
+      onFileSelect?.(null);
+      onImageChange(null);
+      setIsModalOpen(false);
+      return;
+    }
+
     if (!previewUrl) return;
     const ok = confirm("Bạn có chắc muốn xóa hình sản phẩm này?");
     if (!ok) return;
+
     setLoading(true);
     try {
-      const res = await fetch(
-        `http://localhost:8000/api/admin/products/${productId}/image/`,
-        {
-          method: "DELETE",
-        }
-      );
+      const res = await fetch(`http://localhost:8000/api/admin/products/${productId}/image/`, {
+        method: "DELETE",
+      });
 
       if (!res.ok) {
         console.error("Delete failed");
-        setLoading(false);
         return;
       }
 
       setPreviewUrl(null);
       onImageChange(null);
+      onFileSelect?.(null);
       setIsModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -351,44 +374,27 @@ function ProductImageField({
   return (
     <>
       {!isValidImageUrl(previewUrl) ? (
-        // Chưa có hình → dấu cộng
         <label className="w-28 h-28 flex items-center justify-center bg-[#f5f5f5] hover:bg-gray-200 rounded-lg border border-gray-300 cursor-pointer text-black text-4xl font-light transition">
           {loading ? "..." : "+"}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={onFileChange}
-            className="hidden"
-          />
+          <input type="file" accept="image/*" onChange={onFileChange} className="hidden" />
         </label>
       ) : (
-        // Có hình → preview nhỏ, click mở to
         <div
           className="relative w-28 h-28 rounded-lg overflow-hidden border border-gray-700 cursor-pointer group"
           onClick={() => setIsModalOpen(true)}
         >
-          {isValidImageUrl(previewUrl) && (
-            <Image
-              src={previewUrl!}
-              alt="product-image"
-              fill
-              className="object-cover"
-            />
-          )}
+          <Image src={previewUrl!} alt="product-image" fill className="object-cover" />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition">
             Nhấn để xem
           </div>
         </div>
       )}
 
-      {/* Modal xem ảnh to + sửa + xóa */}
-      {isModalOpen && isValidImageUrl(previewUrl) &&(
+      {isModalOpen && isValidImageUrl(previewUrl) && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
           <div className="bg-[#111] rounded-xl p-4 max-w-xl w-full mx-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-white font-semibold text-sm">
-                Hình sản phẩm
-              </h3>
+              <h3 className="text-white font-semibold text-sm">Hình sản phẩm</h3>
               <button
                 type="button"
                 className="text-gray-400 hover:text-white text-lg"
@@ -399,33 +405,15 @@ function ProductImageField({
             </div>
 
             <div className="relative w-full aspect-4/3 mb-4 rounded-lg overflow-hidden border border-gray-700">
-              {previewUrl && isValidImageUrl(previewUrl) ? (
-                <Image
-                  src={previewUrl}
-                  alt="product-image-large"
-                  fill
-                  className="object-contain bg-black"
-                />
-              ) : (
-                <div className="w-full h-full bg-black flex items-center justify-center text-gray-400">
-                  Không có hình
-                </div>
-              )}
+              <Image src={previewUrl!} alt="product-image-large" fill className="object-contain bg-black" />
             </div>
 
             <div className="flex justify-between gap-3">
-              {/* Đổi hình */}
               <label className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg border border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white text-sm cursor-pointer transition">
                 {loading ? "Đang xử lý..." : "Đổi hình"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={onFileChange}
-                  className="hidden"
-                />
+                <input type="file" accept="image/*" onChange={onFileChange} className="hidden" />
               </label>
 
-              {/* Xóa hình */}
               <button
                 type="button"
                 onClick={handleDelete}
@@ -441,6 +429,7 @@ function ProductImageField({
     </>
   );
 }
+
 
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

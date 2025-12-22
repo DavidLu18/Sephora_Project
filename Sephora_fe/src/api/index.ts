@@ -197,7 +197,7 @@ export async function getProductsByCategory(params: {
   max_price?: number;
   rating?: number;
   sort_by?: string;
-  brand_ids?: number[];
+  brand_ids?: string
 }): Promise<ProductResponse> {
   const query = new URLSearchParams();
 
@@ -213,10 +213,8 @@ export async function getProductsByCategory(params: {
   if (params.max_price) query.append("max_price", params.max_price.toString());
   if (params.rating) query.append("rating", params.rating.toString());
   if (params.sort_by) query.append("sort_by", params.sort_by);
-  if (params.brand_ids && params.brand_ids.length > 0) {
-    params.brand_ids.forEach((id) =>
-      query.append("brand_ids", id.toString())
-    );
+  if (params.brand_ids) {
+    query.append("brand_ids", params.brand_ids);
   }
 
   //  Gọi API và ép kiểu dữ liệu trả về

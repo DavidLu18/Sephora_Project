@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getProducts, deleteProduct } from "@/api/products";
+import { getProducts, softDeleteProduct  } from "@/api/products";
 import Link from "next/link";
 import Image from "next/image";
 import { Product } from "@/types/product";
@@ -84,16 +84,17 @@ export default function ProductsPage() {
     label: `${"— ".repeat(c.level)}${c.name}`,
   }));
   
-    const handleDelete = async (id: number) => {
-    if (!confirm("Bạn có chắc muốn xóa sản phẩm?")) return;
+  const handleDelete = async (id: number) => {
+    if (!confirm("Bạn có chắc muốn ngưng bán sản phẩm này?")) return;
 
     try {
-      await deleteProduct(id);
-      fetchProducts(page);
-    } catch (error) {
-      console.error("Lỗi xóa sản phẩm:", error);
+      await softDeleteProduct(id);
+      fetchProducts(page); // reload list
+    } catch (err) {
+      console.error(err);
     }
   };
+
 
   useEffect(() => {
     fetchProducts(1);
@@ -181,9 +182,10 @@ export default function ProductsPage() {
         <div className="flex items-center gap-3">
           {[
             
-            { key: "online", label: "Chỉ Online" },
+            // { key: "online", label: "Chỉ Online" },
             { key: "outofstock", label: "Hết hàng" },           
-            { key: "new", label: "Mới" },
+            // { key: "new", label: "Mới" },
+            { key: "exclusive", label: "Tạm ngưng" }
           ].map((st) => (
             <label key={st.key} className="text-xs text-gray-300 flex items-center gap-1">
               <input
@@ -330,12 +332,12 @@ export default function ProductsPage() {
                         Sửa
                       </Link>
 
-                      {/* <button
+                      <button
                         onClick={() => handleDelete(item.productid)}
                         className="px-3 py-1.5 text-xs rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition"
                       >
                         Xóa
-                      </button> */}
+                      </button>
                     </div>
                   </td>
                 </tr>

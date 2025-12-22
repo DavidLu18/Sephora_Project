@@ -106,32 +106,42 @@ export default function Header() {
   // Monitor Firebase user authentication state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUserEmail(firebaseUser.email);
-
-        try {
-          const token = await firebaseUser.getIdToken(true); // Get fresh token
-          await fetchCart(token); // Fetch cart with the token
-        } catch (err) {
-          console.error("Error getting Firebase token:", err);
-        }
-
-        try {
-          const res = await fetch(
-            `http://127.0.0.1:8000/api/users/get_user/?email=${firebaseUser.email}`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            setLastName(data.lastname || "");
-            setUserRole(data.role || null);
-          }
-        } catch (err) {
-          console.error("Error fetching profile from backend:", err);
-        }
-      } else {
+      if (!firebaseUser) {
         setUserEmail(null);
         setLastName(null);
         setUserRole(null);
+        return;
+      }
+
+      // BẮT BUỘC reload
+      await firebaseUser.reload();
+
+      // CHƯA VERIFY → COI NHƯ CHƯA LOGIN
+      if (!firebaseUser.emailVerified) {
+        setUserEmail(null);
+        setLastName(null);
+        setUserRole(null);
+        return;
+      }
+
+      // CHỈ TỚI ĐÂY MỚI LÀ USER HỢP LỆ
+      setUserEmail(firebaseUser.email);
+
+      const token = await firebaseUser.getIdToken(true);
+
+      await fetchCart(token);
+
+      try {
+        const res = await fetch(
+          `http://127.0.0.1:8000/api/users/get_user/?email=${firebaseUser.email}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setLastName(data.lastname || "");
+          setUserRole(data.role || null);
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
       }
     });
 
@@ -214,6 +224,9 @@ export default function Header() {
 
   useEffect(() => {
     const handleOpenPersonalized = (event: Event) => {
+      const active = document.activeElement as HTMLElement;
+      if (active?.tagName === "INPUT") return;
+
       const customEvent = event as CustomEvent<{ query?: string }>;
       if (customEvent.detail?.query) {
         setSearchTerm(customEvent.detail.query);
@@ -256,7 +269,9 @@ export default function Header() {
           className="flex flex-1 items-center justify-center gap-4 mx-10"
         >
           <div className="flex items-center border border-gray-400 rounded-full px-4 py-2 w-full max-w-2xl h-11">
-            <Search className="w-5 h-5 text-gray-500 mr-3 cursor-pointer" onClick={handleSearch} />
+            <button type="submit">
+              <Search className="w-5 h-5 text-gray-500 mr-3" />
+            </button>
             <input
               type="text"
               placeholder="Search"

@@ -6,7 +6,7 @@ from .models import Product, Brand, Category
 from .serializers import ProductSerializer, BrandSerializer, CategorySerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
-
+from django.db.models import Q
 # ---------------------
 # PAGINATION CLASS
 # ---------------------
@@ -105,15 +105,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
         statuses = set(statuses)  # remove duplicate
 
+
+        q = Q()
         for st in statuses:
-            if st.lower() == "exclusive":
-                qs = qs.filter(exclusive=True)
+            if st == "exclusive":
+                qs = qs.filter(is_exclusive=True)
             elif st.lower() == "online":
                 qs = qs.filter(online_only=True)
             elif st.lower() == "outofstock":
-                qs = qs.filter(stock__lte=0)
-            elif st.lower() == "limited":
-                qs = qs.filter(limited=True)
+                 q |= Q(out_of_stock=True) | Q(stock__lte=0)
+            elif st == "limited":
+                s = qs.filter(is_limited_edition=True)   
             elif st.lower() == "new": 
                 qs = qs.filter(is_new=True)
         return qs
@@ -223,7 +225,12 @@ def products_by_categories(request):
     if category_ids:
         all_category_ids = get_all_subcategories(category_ids)
         products = products.filter(category_id__in=all_category_ids)
-
+        
+    brand_ids = request.GET.get("brand_ids", "")
+    if brand_ids:
+        ids = [int(b) for b in brand_ids.split(",") if b.isdigit()]
+        if ids:
+            products = products.filter(brand_id__in=ids)
     # Price filter
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")

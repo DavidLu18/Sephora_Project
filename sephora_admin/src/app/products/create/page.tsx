@@ -12,11 +12,7 @@ export default function CreateProductPage() {
   const [images, setImages] = useState<File[]>([]);
 
   const handleSubmit = async (data: ProductFormData) => {
-    if (images.length === 0) {
-        alert("Bạn phải chọn ít nhất 1 hình ảnh!");
-        return;
-    }
-
+   
     const formData = new FormData();
 
     Object.entries(data).forEach(([key, value]) => {

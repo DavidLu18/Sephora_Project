@@ -50,10 +50,11 @@ export const updateProduct = async (id: number, data: ProductFormData) => {
 };
 
 // DELETE product
-export const deleteProduct = async (id: number): Promise<Product> => {
-  return await fetchJSON(`/api/admin/products/${id}/`, {
-    method: "DELETE",
-  });
+export const softDeleteProduct = (id: number) => {
+  return fetch(
+    `http://localhost:8000/api/admin/products/${id}/soft-delete/`,
+    { method: "PATCH" }
+  );
 };
 
 // UPLOAD product image (required)

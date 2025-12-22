@@ -47,25 +47,27 @@ export default function Navbar() {
       }}
     >
       <nav className="relative bg-black text-white text-sm font-medium">
-        <ul className="flex justify-center gap-6 px-6 py-3 whitespace-nowrap overflow-visible">
-          {categories.map((cat) => (
-            <li
-              key={cat.category_id}
-              className="cursor-pointer hover:text-gray-300 transition-colors duration-150"
-              onMouseEnter={() => setActiveCategory(cat.category_id)}
-            >
-              <Link href={`/shop/${cat.category_id}`} className="block px-1">
-                {cat.category_name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="max-w-screen-xl mx-auto px-3 sm:px-4">
+          <ul className="hidden sm:flex justify-center gap-6 py-3">
+            {categories.map((cat) => (
+              <li
+                key={cat.category_id}
+                className="cursor-pointer hover:text-gray-300 transition-colors duration-150"
+                onMouseEnter={() => setActiveCategory(cat.category_id)}
+              >
+                <Link href={`/shop/${cat.category_id}`} className="block px-1">
+                  {cat.category_name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         {hovering && hasChildren && (
-          <div className="absolute left-0 top-full w-screen bg-white text-black shadow-2xl border-t border-gray-200 z-[1400]">
-            <div className="mx-auto max-w-6xl px-8 py-6 grid grid-cols-4 gap-8">
-              {currentCategory?.children?.map((child) => (
-                <div key={child.category_id}>
+        <div className="absolute left-0 top-full w-full bg-white shadow-2xl border-t border-gray-200 z-[1400]">
+          <div className="max-w-screen-xl mx-auto px-8 py-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8">
+            {currentCategory?.children?.map((child) => (
+              <div key={child.category_id}>
                   <Link
                     href={`/shop/${child.category_id}`}
                     className="font-semibold text-gray-800 mb-2 block hover:text-pink-600 transition-colors"

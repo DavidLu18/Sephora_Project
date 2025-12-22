@@ -49,7 +49,8 @@ class Product(models.Model):
     out_of_stock = models.BooleanField(null=True, blank=True)                          
     is_limited_edition = models.BooleanField(null=True, blank=True)                    
     is_new = models.BooleanField(null=True, blank=True)                                
-
+    is_exclusive = models.BooleanField(default=False)
+    
     stock = models.IntegerField(default=0)
 
     avg_rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)

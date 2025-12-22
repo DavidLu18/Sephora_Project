@@ -73,20 +73,20 @@ export default function CategoryPage() {
         max_price?: number
         rating?: number
         sort_by?: string
-        brand_ids?: number[]
+        brand_ids?: string
       } = {
         category_ids: [filters.categoryId || category_id],
         page: currentPage,
         size: PAGE_SIZE,
       }
 
-      if (filters.minPrice) params.min_price = filters.minPrice
-      if (filters.maxPrice) params.max_price = filters.maxPrice
-      if (filters.rating) params.rating = filters.rating
-      if (filters.sortBy) params.sort_by = filters.sortBy
-      if (filters.brands.length > 0)
-        params.brand_ids = filters.brands // (tuỳ API bạn có hỗ trợ không)
-
+      if (filters.minPrice !== null) params.min_price = filters.minPrice
+      if (filters.maxPrice !== null) params.max_price = filters.maxPrice
+      if (filters.rating !== null) params.rating = filters.rating
+      if (filters.sortBy !== "") params.sort_by = filters.sortBy
+      if (filters.brands.length > 0) {
+        params.brand_ids = filters.brands.join(",")
+      }
       const data = await getProductsByCategory(params)
       setAllProducts(data.results || [])
       setFilteredProducts(data.results || [])

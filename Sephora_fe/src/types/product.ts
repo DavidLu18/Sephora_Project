@@ -19,6 +19,9 @@ export interface Product {
   thumbnail?: string
   image_url?: string
   ingredients?: string
+  is_exclusive?: boolean       // ngưng bán
+  out_of_stock?: boolean       // hết hàng (flag)
+  stock?: number    
 }
 export interface ProductReview {
   reviewid: number

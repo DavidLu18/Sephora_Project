@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.conf import settings
 import os
-
+from rest_framework.decorators import action
 from .models import Product, ProductImage
 from .admin_serializers import (
     AdminProductSerializer,
@@ -16,7 +16,16 @@ class AdminProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().order_by("-productid")
     serializer_class = AdminProductSerializer
 
+    @action(detail=True, methods=["patch"], url_path="soft-delete")
+    def soft_delete(self, request, pk=None):
+        product = self.get_object()
+        product.is_exclusive = True
+        product.save(update_fields=["is_exclusive"])
 
+        return Response(
+            {"message": "Sản phẩm đã được ngưng bán (exclusive)"},
+            status=status.HTTP_200_OK
+        )
 #  Upload ảnh sản phẩm
 @api_view(["POST"])
 def upload_product_image(request):

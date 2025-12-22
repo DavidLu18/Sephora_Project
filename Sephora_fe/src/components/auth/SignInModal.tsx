@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase";
@@ -18,17 +18,26 @@ export default function SignInModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) {
+      // reset khi modal đóng
+      setEmail("");
+      setPassword("");
+      setError("");
+      setLoading(false);
+    }
+  }, [isOpen]);
   if (!isOpen) return null;
-
+  
   const handleSignIn = async (e: React.FormEvent) => {
   e.preventDefault();
   setError("");
   setLoading(true);
 
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
     const user = userCredential.user;
-
+    await user.reload();
     if (!user.emailVerified) {
       setError("Email chưa được xác minh. Vui lòng kiểm tra hộp thư.");
       await auth.signOut();
@@ -43,30 +52,23 @@ export default function SignInModal({
     alert(`Đăng nhập thành công! Chào ${user.email}`);
 
     onClose();  // đóng modal
-  } catch (err: unknown) {
-    if (err instanceof FirebaseError) {
-      switch (err.code) {
-        case "auth/user-not-found":
-          setError("Tài khoản không tồn tại.");
-          break;
-        case "auth/wrong-password":
-          setError("Sai mật khẩu. Vui lòng thử lại.");
-          break;
-        case "auth/too-many-requests":
-          setError("Tài khoản bị khóa tạm thời do đăng nhập sai quá nhiều lần.");
-          break;
-        default:
-          setError("Lỗi đăng nhập: " + err.message);
+  } catch (error) {
+    if (error instanceof FirebaseError) {
+      console.log("Firebase error code:", error.code);
+
+      if (error.code === "auth/user-not-found") {
+        setError("Email không tồn tại.");
+      } else if (error.code === "auth/wrong-password") {
+        setError("Mật khẩu không đúng.");
+      } else if (error.code === "auth/email-not-verified") {
+        setError("Vui lòng xác minh email trước khi đăng nhập.");
+      } else {
+        setError(error.message);
       }
-    } else if (err instanceof Error) {
-      setError(err.message);
-    } else {
-      setError("Đã xảy ra lỗi không xác định.");
     }
-  } finally {
-    setLoading(false);
   }
 };
+
 
 
   return (
